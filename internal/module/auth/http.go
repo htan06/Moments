@@ -1,10 +1,10 @@
 package auth
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/htan06/echo-messenger-rest-api/internal/api"
 )
 
 type AuthHandler struct {
@@ -26,8 +26,7 @@ func (ah *AuthHandler) handleSendOTP(c *gin.Context) {
 	}
 
 	if err := ah.authService.SendOTP(ctx, req.Email); err != nil {
-		fmt.Println("ERROR: ", err.Error())
-		c.Status(http.StatusBadRequest)
+		api.HandleError(c, err)
 		return
 	}
 
@@ -44,8 +43,7 @@ func (ah *AuthHandler) handleVerifyOTP(c *gin.Context) {
 
 	tokenResp, err := ah.authService.VerifyOTP(ctx, req.Email, req.OTP)
 	if err != nil {
-		fmt.Println("ERROR: ", err.Error())
-		c.Status(http.StatusBadRequest)
+		api.HandleError(c, err)
 		return
 	}
 
@@ -62,8 +60,7 @@ func (ah *AuthHandler) handleRegisterUser(c *gin.Context) {
 
 	tokenResp, err := ah.authService.RegisterUser(ctx, req)
 	if err != nil {
-		fmt.Println("ERROR: ", err.Error())
-		c.Status(http.StatusBadRequest)
+		api.HandleError(c, err)
 		return
 	}
 

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/htan06/echo-messenger-rest-api/internal/apperr"
 	"github.com/htan06/echo-messenger-rest-api/internal/config"
+	"github.com/htan06/echo-messenger-rest-api/internal/errs"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/model"
 )
 
@@ -66,7 +66,7 @@ func (jp *JWTProvier) ParseAccessToken(tokenString string) (UserClaimsAccess, er
 	}
 
 	if !token.Valid {
-		return UserClaimsAccess{}, apperr.NewAppError(apperr.TokenInvalid)
+		return UserClaimsAccess{}, errs.NewError(errs.AuthenticationFailure, nil, errs.TokenInvalid)
 	}
 	return claim, nil
 }
@@ -101,7 +101,7 @@ func (jp *JWTProvier) ParseRefreshToken(tokenString string) (UserClaimsRefresh, 
 	}
 
 	if !token.Valid {
-		return UserClaimsRefresh{}, apperr.NewAppError(apperr.TokenInvalid)
+		return UserClaimsRefresh{}, errs.NewError(errs.AuthenticationFailure, nil, errs.TokenInvalid)
 	}
 	return claim, nil
 }
@@ -132,7 +132,7 @@ func (jp *JWTProvier) ParseRegisterToken(tokenString string) (*jwt.Token, error)
 	}
 
 	if !token.Valid {
-		return nil, apperr.NewAppError(apperr.TokenInvalid)
+		return nil, errs.NewError(errs.AuthenticationFailure, nil, errs.TokenInvalid)
 	}
 	return token, nil
 }

@@ -1,12 +1,10 @@
 package user
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/htan06/echo-messenger-rest-api/internal/api"
-	"github.com/htan06/echo-messenger-rest-api/internal/apperr"
 )
 
 type UserHandler struct {
@@ -30,10 +28,8 @@ func (uh *UserHandler) HandleGetInfo(c *gin.Context) {
 
 	info, err := uh.userServie.GetInfo(ctx, cur.ID())
 	if err != nil {
-		if _, ok := errors.AsType[*apperr.AppErr](err); ok {
-			c.Status(http.StatusNotFound)
-			return
-		}
+		api.HandleError(c, err)
+		return
 	}
 
 	c.JSON(http.StatusOK, info)
@@ -55,7 +51,7 @@ func (uh *UserHandler) HandleUpdateInfo(c *gin.Context) {
 	}
 
 	if err := uh.userServie.UpdateInfo(ctx, cur.ID(), req); err != nil {
-		c.Status(http.StatusBadRequest)
+		api.HandleError(c, err)
 		return
 	}
 
@@ -78,7 +74,7 @@ func (uh *UserHandler) HandleChangeReadStatus(c *gin.Context) {
 	}
 
 	if err := uh.userServie.ChangeReadStatus(ctx, cur.ID(), req); err != nil {
-		c.Status(http.StatusBadRequest)
+		api.HandleError(c, err)
 		return
 	}
 
@@ -101,7 +97,7 @@ func (uh *UserHandler) HandleUpdateUsername(c *gin.Context) {
 	}
 
 	if err := uh.userServie.UpdateUsername(ctx, cur.ID(), req); err != nil {
-		c.Status(http.StatusBadRequest)
+		api.HandleError(c, err)
 		return
 	}
 

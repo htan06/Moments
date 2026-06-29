@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/apperr"
+	"github.com/htan06/echo-messenger-rest-api/internal/errs"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/model"
 	"github.com/htan06/echo-messenger-rest-api/internal/security"
 )
@@ -53,7 +53,7 @@ func (as *AuthenticationService) VerifyOTP(ctx context.Context, email string, re
 	otp, err := as.cacheRepo.Get(ctx, key)
 
 	if err != nil || otp != receivedOtp {
-		return TokenResp{}, apperr.NewAppError(apperr.OTPInvalid)
+		return TokenResp{}, errs.NewError(errs.AuthenticationFailure, nil, errs.IncorrectOTP)
 	}
 
 	if err := as.cacheRepo.Remove(ctx, key); err != nil {
@@ -62,7 +62,7 @@ func (as *AuthenticationService) VerifyOTP(ctx context.Context, email string, re
 
 	user, err := as.userRepo.GetByEmail(ctx, email)
 
-	if ae, ok := errors.AsType[*apperr.AppErr](err); ok && ae.Code == apperr.UserNotFound {
+	if e, ok := errors.AsType[*errs.Error](err); ok && e.Type == errs.NotFound  {
 		registerToken, err := as.jwtProvider.GenerateRegisterToken(email)
 		if err != nil {
 			return TokenResp{}, fmt.Errorf("AuthenticationService[VerifyOTP]: %w", err)
@@ -81,7 +81,7 @@ func (as *AuthenticationService) VerifyOTP(ctx context.Context, email string, re
 	}
 
 	if user.Status != model.UserActive {
-		return TokenResp{}, apperr.NewAppError(apperr.UserNonActive)
+		return TokenResp{}, errs.NewError(errs.AuthenticationFailure, nil, errs.UserNonActive)
 	}
 
 	accessToken, err := as.jwtProvider.GenerateAccessToken(user)

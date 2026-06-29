@@ -1,0 +1,56 @@
+package errs
+
+import (
+	"fmt"
+)
+
+type ErrorType string
+type ErrorCode string
+
+const (
+	Invalid               ErrorType = "INVALID"
+	Conflict              ErrorType = "CONFLICT"
+	NotFound              ErrorType = "NOT_FOUND"
+	AuthenticationFailure ErrorType = "AUTHENTICATION_FAILURE"
+)
+
+const (
+	UsernameAlreadyUsed    ErrorCode = "USERNAME_ALREADY_USED"
+	EmailAlreadyUsed       ErrorCode = "EMAIL_ALREADY_USED"
+	PhoneNumberAlreadyUsed ErrorCode = "PHONE_NUMBER_ALREADY_USED"
+
+	UserNotFound ErrorCode = "USER_NOT_FOUND"
+
+	IncorrectOTP  ErrorCode = "INCORRCET_OTP"
+	UserNonActive ErrorCode = "USER_NON_ACTIVE"
+	TokenInvalid  ErrorCode = "TOKEN_INVALID"
+)
+
+type Error struct {
+	Type  ErrorType
+	Codes []ErrorCode
+	Err   error
+}
+
+func NewError(errType ErrorType, err error, codes ...ErrorCode) *Error {
+	return &Error{
+		Type:  errType,
+		Codes: codes,
+		Err:   err,
+	}
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s:[%v]", e.Type, e.Codes)
+}
+
+func (e *Error) Unwrap() error {
+	return e.Err
+}
+
+func (e *Error) AddCode(code ErrorCode) {
+	// if e.Codes == nil {
+	// 	e.Codes = make([]ErrorCode, 0)
+	// }
+	e.Codes = append(e.Codes, code)
+}

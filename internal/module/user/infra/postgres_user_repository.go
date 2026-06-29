@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/apperr"
+	"github.com/htan06/echo-messenger-rest-api/internal/errs"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/user/model"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -29,7 +30,7 @@ func (pur *PostgresUserRepository) GetInfo(ctx context.Context, id int64) (model
 		Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.AvatarURL, &user.CoverPhotoURL); err != nil {
 
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.User{}, apperr.NewAppError(apperr.UserNotFound)
+			return model.User{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
 		}
 
 		return model.User{}, fmt.Errorf("PostgresUserRepository[GetInfo]: %w", err)
@@ -61,6 +62,11 @@ func (pur *PostgresUserRepository) UpdateUsername(ctx context.Context, user mode
 
 	_, err := pur.conn.Exec(ctx, query, user.Username, user.ID)
 	if err != nil {
+		if pgerr, ok := errors.AsType[*pgconn.PgError](err); ok {
+			if pgerr.Code == "23505" && pgerr.ConstraintName == "users_username_key" {
+				return errs.NewError(errs.Conflict, pgerr, errs.UsernameAlreadyUsed)
+			}
+		}
 		return fmt.Errorf("PostgresUserRepository[UpdateUsername]: %w", err)
 	}
 	return nil
