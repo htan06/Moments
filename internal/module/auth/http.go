@@ -25,7 +25,7 @@ func (ah *AuthHandler) handleSendOTP(c *gin.Context) {
 		c.Status(http.StatusBadRequest)
 	}
 
-	if err := ah.authService.SendOTP(ctx, req.Email); err != nil {
+	if err := ah.authService.RequireOTP(ctx, req.Email); err != nil {
 		api.HandleError(c, err)
 		return
 	}
@@ -39,6 +39,7 @@ func (ah *AuthHandler) handleVerifyOTP(c *gin.Context) {
 	var req VerifyOTPReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Status(http.StatusBadRequest)
+		return
 	}
 
 	tokenResp, err := ah.authService.VerifyOTP(ctx, req.Email, req.OTP)
@@ -56,6 +57,7 @@ func (ah *AuthHandler) handleRegisterUser(c *gin.Context) {
 	var req RegisterUserReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Status(http.StatusBadRequest)
+		return
 	}
 
 	tokenResp, err := ah.authService.RegisterUser(ctx, req)

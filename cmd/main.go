@@ -6,9 +6,10 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/api"
+	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth"
+	"github.com/htan06/echo-messenger-rest-api/internal/module/friend"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/user"
 	"github.com/htan06/echo-messenger-rest-api/internal/security"
 	"github.com/joho/godotenv"
@@ -52,5 +53,8 @@ func main() {
 
 	userModule := user.InitUserModule(postgresConn)
 	userModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
+
+	friendModule := friend.InitFriendModule(postgresConn)
+	friendModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
 	router.Run()
 }

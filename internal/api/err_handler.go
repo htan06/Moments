@@ -22,6 +22,7 @@ func HandleError(c *gin.Context, err error) {
 			c.JSON(httpCode, gin.H{
 				"error_codes": e.Codes,
 			})
+			return
 		}
 	}
 	

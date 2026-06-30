@@ -19,7 +19,8 @@ const (
 	EmailAlreadyUsed       ErrorCode = "EMAIL_ALREADY_USED"
 	PhoneNumberAlreadyUsed ErrorCode = "PHONE_NUMBER_ALREADY_USED"
 
-	UserNotFound ErrorCode = "USER_NOT_FOUND"
+	UserNotFound     ErrorCode = "USER_NOT_FOUND"
+	ReceiverNotFound ErrorCode = "RECEIVER_NOT_FOUND"
 
 	IncorrectOTP  ErrorCode = "INCORRCET_OTP"
 	UserNonActive ErrorCode = "USER_NON_ACTIVE"
@@ -49,8 +50,5 @@ func (e *Error) Unwrap() error {
 }
 
 func (e *Error) AddCode(code ErrorCode) {
-	// if e.Codes == nil {
-	// 	e.Codes = make([]ErrorCode, 0)
-	// }
 	e.Codes = append(e.Codes, code)
 }

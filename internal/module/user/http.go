@@ -20,7 +20,7 @@ func NewUserHandler(userServie *UserService) *UserHandler {
 func (uh *UserHandler) HandleGetInfo(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	cur, exists := api.GetCurentUser(c)
+	cur, exists := api.GetCurrentUser(c)
 	if !exists {
 		c.Status(http.StatusUnauthorized)
 		return
@@ -38,7 +38,7 @@ func (uh *UserHandler) HandleGetInfo(c *gin.Context) {
 func (uh *UserHandler) HandleUpdateInfo(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	cur, exists := api.GetCurentUser(c)
+	cur, exists := api.GetCurrentUser(c)
 	if !exists {
 		c.Status(http.StatusUnauthorized)
 		return
@@ -61,7 +61,7 @@ func (uh *UserHandler) HandleUpdateInfo(c *gin.Context) {
 func (uh *UserHandler) HandleChangeReadStatus(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	cur, exists := api.GetCurentUser(c)
+	cur, exists := api.GetCurrentUser(c)
 	if !exists {
 		c.Status(http.StatusUnauthorized)
 		return
@@ -84,7 +84,7 @@ func (uh *UserHandler) HandleChangeReadStatus(c *gin.Context) {
 func (uh *UserHandler) HandleUpdateUsername(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	cur, exists := api.GetCurentUser(c)
+	cur, exists := api.GetCurrentUser(c)
 	if !exists {
 		c.Status(http.StatusUnauthorized)
 		return

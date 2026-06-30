@@ -30,7 +30,7 @@ func (u *CurrentUser) Email() string {
 	return u.email
 }
 
-func GetCurentUser(c *gin.Context) (CurrentUser, bool) {
+func GetCurrentUser(c *gin.Context) (CurrentUser, bool) {
 	val, exists := c.Get("currentUser")
 	if !exists {
 		return CurrentUser{}, false

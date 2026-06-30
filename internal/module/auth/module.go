@@ -40,7 +40,7 @@ func InitAuthModule(
 func (am *AuthModule) RegisterRouter(r *gin.RouterGroup, middlewares...gin.HandlerFunc) {
 	auth := r.Group("/auth")
 
-	auth.POST("/send-otp", am.authHandler.handleSendOTP)
+	auth.POST("/require-otp", am.authHandler.handleSendOTP)
 	auth.POST("/verify-otp", am.authHandler.handleVerifyOTP)
 	auth.POST("/register", am.authHandler.handleRegisterUser)
 }

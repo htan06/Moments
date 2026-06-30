@@ -35,7 +35,7 @@ func NewAuthenticationService(
 	}
 }
 
-func (as *AuthenticationService) SendOTP(ctx context.Context, email string) error {
+func (as *AuthenticationService) RequireOTP(ctx context.Context, email string) error {
 	otp := as.secureRand.RandOTP()
 
 	key := "auth-otp-" + email

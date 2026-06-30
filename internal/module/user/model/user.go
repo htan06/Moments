@@ -8,7 +8,6 @@ import (
 
 type UserStatus string
 type NotificationService string
-type FriendRequestStatus string
 type UserActionType string
 
 const (
@@ -18,11 +17,6 @@ const (
 	FcmService NotificationService = "FCM"
 	ApnService NotificationService = "APN"
 	WebService NotificationService = "WEB"
-
-	FriendRequestStatusPending  FriendRequestStatus = "PENDING"
-	FriendRequestStatusCanceled FriendRequestStatus = "CANCELED"
-	FriendRequestStatusRejected FriendRequestStatus = "REJECTED"
-	FriendRequestStatusAccepted FriendRequestStatus = "ACCEPTED"
 
 	UserActionAddFriend           UserActionType = "ADD_FRIEND"
 	UserActionRejectFriendRequest UserActionType = "REJECT_FRIEND_REQUEST"
@@ -69,30 +63,6 @@ type UserPushNotification struct {
 	Service           NotificationService
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
-}
-
-type UserFriend struct {
-	FriendID  int64
-	CreatedAt time.Time
-}
-
-type SentFriendRequest struct {
-	ToUserID  int64
-	Status    FriendRequestStatus
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
-type ReceivedFriendRequest struct {
-	FromUserID int64
-	Status     FriendRequestStatus
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-}
-
-type BlockedUser struct {
-	BlockUserID int64
-	CreatedAt   time.Time
 }
 
 type UserHistory struct {
