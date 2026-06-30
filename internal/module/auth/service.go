@@ -141,3 +141,16 @@ func (as *AuthenticationService) RegisterUser(ctx context.Context, req RegisterU
 			"refresh_token": refreshToken,
 		}, nil
 }
+
+func (as *AuthenticationService) RefreshToken(ctx context.Context, currenUserID int64) (string, error) {
+	u, err := as.userRepo.GetByID(ctx, currenUserID)
+	if err != nil {
+		return "", fmt.Errorf("AuthenticationService.RefreshToken: %w", err)
+	}
+
+	accessToken, err := as.jwtProvider.GenerateAccessToken(u)
+	if err != nil {
+		return "", fmt.Errorf("AuthenticationService.RefreshToken: %w", err)
+	}
+	return accessToken, nil
+}

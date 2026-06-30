@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/echo-messenger-rest-api/internal/api"
+	"github.com/htan06/echo-messenger-rest-api/internal/api/middleware"
 	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/friend"
@@ -44,12 +44,12 @@ func main() {
 	gmailDialer := config.GetGmailDialer()
 	mailAddress := config.GetMailAddress()
 
-	jwtMiddleware := api.NewJWTMiddleware(jwtProvider)
+	jwtMiddleware := middleware.NewJWTMiddleware(jwtProvider)
 
 	router := gin.Default()
 	v1 := router.Group("/api/v1")
 	authModule := auth.InitAuthModule(postgresConn, redisConn, gmailDialer, jwtProvider, mailAddress)
-	authModule.RegisterRouter(v1)
+	authModule.RegisterRouter(v1, jwtMiddleware.RequireRefreshToken())
 
 	userModule := user.InitUserModule(postgresConn)
 	userModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())

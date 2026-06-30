@@ -19,6 +19,7 @@ type UserClaimsAccess struct {
 }
 
 type UserClaimsRefresh struct {
+	UserID   int64  `json:"user_id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
@@ -73,6 +74,7 @@ func (jp *JWTProvier) ParseAccessToken(tokenString string) (UserClaimsAccess, er
 
 func (jp *JWTProvier) GenerateRefreshToken(user model.User) (string, error) {
 	claim := UserClaimsRefresh{
+		UserID:   user.ID,
 		Username: user.Username,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.Email,
@@ -83,7 +85,7 @@ func (jp *JWTProvier) GenerateRefreshToken(user model.User) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claim)
-	tokenSigned, err := token.SignedString(jp.cfg.PrivateKeyAccess())
+	tokenSigned, err := token.SignedString(jp.cfg.PrivateKeyRefresh())
 	if err != nil {
 		return "", fmt.Errorf("JWTProvider[GenerateRefreshToken]: %w", err)
 	}

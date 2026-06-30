@@ -1,10 +1,11 @@
-package api
+package middleware
 
 import (
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/htan06/echo-messenger-rest-api/internal/api"
 	"github.com/htan06/echo-messenger-rest-api/internal/security"
 )
 
@@ -36,7 +37,30 @@ func (jwtm *JWTMiddleWare) RequireAccessToken() gin.HandlerFunc {
 			return
 		}
 
-		currentUser := NewCurrentUser(claim.UserID, claim.Username, claim.Subject)
+		currentUser := api.NewCurrentUser(claim.UserID, claim.Username, claim.Subject)
+
+		c.Set("currentUser", currentUser)
+	}
+}
+
+func (jwtm *JWTMiddleWare) RequireRefreshToken() gin.HandlerFunc {
+
+	return func(c *gin.Context) {
+		var req RefreshTokenReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.Status(http.StatusBadRequest)
+			c.Abort()
+			return
+		}
+
+		claim, err := jwtm.jwtProvider.ParseRefreshToken(req.RefreshToken)
+		if err != nil {
+			c.Status(http.StatusUnauthorized)
+			c.Abort()
+			return
+		}
+
+		currentUser := api.NewCurrentUser(claim.UserID, claim.Username, claim.Subject)
 
 		c.Set("currentUser", currentUser)
 	}

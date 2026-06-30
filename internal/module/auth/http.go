@@ -68,3 +68,21 @@ func (ah *AuthHandler) handleRegisterUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, tokenResp)
 }
+
+func (ah *AuthHandler) handleRefreshToken(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	cur, exists := api.GetCurrentUser(c)
+	if !exists {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	accessToken, err := ah.authService.RefreshToken(ctx, cur.ID())
+	if err != nil {
+		api.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
+}

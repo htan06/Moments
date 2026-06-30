@@ -27,10 +27,10 @@ func (fs *FriendService) FindUserByUserName(ctx context.Context, username string
 	return up, nil
 }
 
-func (fs *FriendService) CreateFriendRequest(ctx context.Context, currentUserId int64, receiverUserId int64) error {
+func (fs *FriendService) CreateFriendRequest(ctx context.Context, currentUserID int64, receiverUserID int64) error {
 	friendRequest := model.FriendRequest{
-		SenderID: currentUserId,
-		ReceiverID: receiverUserId,
+		SenderID: currentUserID,
+		ReceiverID: receiverUserID,
 		Status: model.FriendRequestStatusPending,
 	}
 

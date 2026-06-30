@@ -36,6 +36,20 @@ func (pur *PostgresUserRepository) GetByEmail(ctx context.Context, email string)
 	return user, nil
 }
 
+func (pur *PostgresUserRepository) GetByID(ctx context.Context, id int64) (model.User, error) {
+	query := `SELECT id, username, email, phone_number, first_name, last_name, status FROM identity.users WHERE id = $1;`
+
+	user := model.User{}
+	if err := pur.conn.QueryRow(ctx, query, id).Scan(&user.ID, &user.Username, &user.Email, &user.PhoneNumber, &user.FirstName, &user.LastName, &user.Status); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.User{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
+		}
+		return model.User{}, fmt.Errorf("PostgresUserRepository[GetByID]: %w", err)
+	}
+
+	return user, nil
+}
+
 func (pur *PostgresUserRepository) Create(ctx context.Context, user model.User) error {
 	query := `INSERT INTO identity.users(username, email, phone_number, first_name, last_name) VALUES ($1, $2, $3, $4, $5);`
 
