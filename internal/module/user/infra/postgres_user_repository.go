@@ -71,3 +71,21 @@ func (pur *PostgresUserRepository) UpdateUsername(ctx context.Context, user mode
 	}
 	return nil
 }
+
+func (pur *PostgresUserRepository) FindByUsername(ctx context.Context, username string) (model.UserProfile, error) {
+	query := `SELECT id, username, first_name, last_name, avatar_url, cover_photo_url 
+				FROM identity.users
+				WHERE username = $1;`
+
+	var up model.UserProfile
+	if err := pur.conn.QueryRow(ctx, query, username).
+		Scan(&up.ID, &up.Username, &up.FirstName, &up.LastName, &up.AvatarURL, &up.CoverPhotoURL); err != nil {
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.UserProfile{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
+		}
+		return model.UserProfile{}, fmt.Errorf("PostgresUserRepository[FindByUsername]: %w", err)
+	}
+
+	return up, nil
+}

@@ -47,7 +47,12 @@ func main() {
 	jwtMiddleware := middleware.NewJWTMiddleware(jwtProvider)
 
 	router := gin.Default()
+	
+	router.Use(middleware.CORSMiddleware())
+	
 	v1 := router.Group("/api/v1")
+
+
 	authModule := auth.InitAuthModule(postgresConn, redisConn, gmailDialer, jwtProvider, mailAddress)
 	authModule.RegisterRouter(v1, jwtMiddleware.RequireRefreshToken())
 
@@ -56,5 +61,5 @@ func main() {
 
 	friendModule := friend.InitFriendModule(postgresConn)
 	friendModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
-	router.Run()
+	router.Run("0.0.0.0:8080")
 }

@@ -40,7 +40,7 @@ func InitAuthModule(
 func (am *AuthModule) RegisterRouter(r *gin.RouterGroup, requireRefreshToken gin.HandlerFunc) {
 	auth := r.Group("/auth")
 
-	auth.POST("/require-otp", am.authHandler.handleSendOTP)
+	auth.POST("/require-otp", am.authHandler.handleRequireOTP)
 	auth.POST("/verify-otp", am.authHandler.handleVerifyOTP)
 	auth.POST("/register", am.authHandler.handleRegisterUser)
 	auth.POST("/refresh-token", requireRefreshToken, am.authHandler.handleRefreshToken)

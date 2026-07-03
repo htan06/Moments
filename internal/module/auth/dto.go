@@ -1,6 +1,6 @@
 package auth
 
-type SendOTPReq struct {
+type requireOTPReq struct {
 	Email string `json:"email"`
 }
 
@@ -9,9 +9,18 @@ type VerifyOTPReq struct {
 	OTP   string `json:"otp"`
 }
 
-type TokenResp struct {
-	ExistsUser bool `json:"exists_user"`
-	Tokens     map[string]string
+type TokenType string
+
+const (
+	LoginType    TokenType = "LOGIN"
+	RegisterType TokenType = "REGISTER"
+)
+
+type VerifyOTPResp struct {
+	Type          TokenType `json:"type"`
+	RegisterToken string    `json:"register_token,omitempty"`
+	AccessToken   string    `json:"access_token,omitempty"`
+	RefreshToken  string    `json:"refresh_token,omitempty"`
 }
 
 type RegisterUserReq struct {

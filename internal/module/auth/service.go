@@ -48,16 +48,16 @@ func (as *AuthenticationService) RequireOTP(ctx context.Context, email string) e
 	return nil
 }
 
-func (as *AuthenticationService) VerifyOTP(ctx context.Context, email string, receivedOtp string) (TokenResp, error) {
+func (as *AuthenticationService) VerifyOTP(ctx context.Context, email string, receivedOtp string) (VerifyOTPResp, error) {
 	key := "auth-otp-" + email
 	otp, err := as.cacheRepo.Get(ctx, key)
 
 	if err != nil || otp != receivedOtp {
-		return TokenResp{}, errs.NewError(errs.AuthenticationFailure, nil, errs.IncorrectOTP)
+		return VerifyOTPResp{}, errs.NewError(errs.AuthenticationFailure, nil, errs.IncorrectOTP)
 	}
 
 	if err := as.cacheRepo.Remove(ctx, key); err != nil {
-		return TokenResp{}, fmt.Errorf("AuthenticationService[VerifyOTP]: %w", err)
+		return VerifyOTPResp{}, fmt.Errorf("AuthenticationService[VerifyOTP]: %w", err)
 	}
 
 	user, err := as.userRepo.GetByEmail(ctx, email)
@@ -65,41 +65,37 @@ func (as *AuthenticationService) VerifyOTP(ctx context.Context, email string, re
 	if e, ok := errors.AsType[*errs.Error](err); ok && e.Type == errs.NotFound  {
 		registerToken, err := as.jwtProvider.GenerateRegisterToken(email)
 		if err != nil {
-			return TokenResp{}, fmt.Errorf("AuthenticationService[VerifyOTP]: %w", err)
+			return VerifyOTPResp{}, fmt.Errorf("AuthenticationService[VerifyOTP]: %w", err)
 		}
 
-		return TokenResp{
-			ExistsUser: false,
-			Tokens: map[string]string{
-				"register_token": registerToken,
-			},
+		return VerifyOTPResp{
+			Type: RegisterType,
+			RegisterToken: registerToken,
 		}, nil
 	}
 
 	if err != nil {
-		return TokenResp{}, fmt.Errorf("AuthenticationService[VerifyOTP]: %w", err)
+		return VerifyOTPResp{}, fmt.Errorf("AuthenticationService[VerifyOTP]: %w", err)
 	}
 
 	if user.Status != model.UserActive {
-		return TokenResp{}, errs.NewError(errs.AuthenticationFailure, nil, errs.UserNonActive)
+		return VerifyOTPResp{}, errs.NewError(errs.AuthenticationFailure, nil, errs.UserNonActive)
 	}
 
 	accessToken, err := as.jwtProvider.GenerateAccessToken(user)
 	if err != nil {
-		return TokenResp{}, err
+		return VerifyOTPResp{}, err
 	}
 
 	refreshToken, err := as.jwtProvider.GenerateRefreshToken(user)
 	if err != nil {
-		return TokenResp{}, err
+		return VerifyOTPResp{}, err
 	}
 
-	return TokenResp{
-		ExistsUser: true,
-		Tokens: map[string]string{
-			"access_token":  accessToken,
-			"refresh_token": refreshToken,
-		},
+	return VerifyOTPResp{
+		Type: LoginType,
+		AccessToken: accessToken,
+		RefreshToken: refreshToken,
 	}, nil
 }
 

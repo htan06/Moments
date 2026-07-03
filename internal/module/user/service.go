@@ -19,12 +19,12 @@ func NewUserService(
 	}
 }
 
-func (us *UserService) GetInfo(ctx context.Context, userId int64) (UserInfoResp, error) {
+func (us *UserService) GetProfileById(ctx context.Context, userId int64) (model.UserProfile, error) {
 	user, err := us.userRepo.GetInfo(ctx, userId)
 	if err != nil {
-		return UserInfoResp{}, fmt.Errorf("UserService[GetInfo]: %w", err)
+		return model.UserProfile{}, fmt.Errorf("UserService[GetInfo]: %w", err)
 	}
-	return UserInfoResp{
+	return model.UserProfile{
 		ID:            user.ID,
 		Username:      user.Username,
 		FirstName:     user.FirstName,
@@ -71,4 +71,12 @@ func (us *UserService) UpdateUsername(ctx context.Context, userId int64, req Upd
 		return fmt.Errorf("UserService[UpdateUsername]: %w", err)
 	}
 	return nil
+}
+
+func (us *UserService) GetProfileByUserName(ctx context.Context, username string) (model.UserProfile, error) {
+	up, err := us.userRepo.FindByUsername(ctx, username)
+	if err != nil {
+		return model.UserProfile{}, fmt.Errorf("FriendService[GetProfileByUserName]: %w", err)
+	}
+	return up, nil
 }

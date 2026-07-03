@@ -17,10 +17,10 @@ func NewAuthenticationHandler(authService *AuthenticationService) *AuthHandler {
 	}
 }
 
-func (ah *AuthHandler) handleSendOTP(c *gin.Context) {
+func (ah *AuthHandler) handleRequireOTP(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var req SendOTPReq
+	var req requireOTPReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Status(http.StatusBadRequest)
 	}

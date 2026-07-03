@@ -19,12 +19,14 @@ const (
 	EmailAlreadyUsed       ErrorCode = "EMAIL_ALREADY_USED"
 	PhoneNumberAlreadyUsed ErrorCode = "PHONE_NUMBER_ALREADY_USED"
 
-	UserNotFound     ErrorCode = "USER_NOT_FOUND"
-	ReceiverNotFound ErrorCode = "RECEIVER_NOT_FOUND"
+	UserNotFound          ErrorCode = "USER_NOT_FOUND"
+	ReceiverNotFound      ErrorCode = "RECEIVER_NOT_FOUND"
+	FriendRequestNotFound ErrorCode = "FRIEND_REQEST_NOT_FOUND"
 
-	IncorrectOTP  ErrorCode = "INCORRCET_OTP"
-	UserNonActive ErrorCode = "USER_NON_ACTIVE"
-	TokenInvalid  ErrorCode = "TOKEN_INVALID"
+	IncorrectOTP         ErrorCode = "INCORRCET_OTP"
+	UserNonActive        ErrorCode = "USER_NON_ACTIVE"
+	TokenInvalid         ErrorCode = "TOKEN_INVALID"
+	FriendRequestInvalid ErrorCode = "FRIEND_REQUEST_INVALID"
 )
 
 type Error struct {

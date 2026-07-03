@@ -11,4 +11,5 @@ type UserRepository interface {
 	UpdateInfo(ctx context.Context, user model.User) error
 	ChangeReadStatus(ctx context.Context, user model.User) error
 	UpdateUsername(ctx context.Context, user model.User) error
+	FindByUsername(ctx context.Context, username string) (model.UserProfile, error)
 }

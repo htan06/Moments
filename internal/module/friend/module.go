@@ -24,10 +24,16 @@ func InitFriendModule(
 	}
 }
 
-func (fm *FriendModule) RegisterRouter(r *gin.RouterGroup, middleware gin.HandlerFunc) {
-	profile := r.Group("/profile")
-	friend := r.Group("/friend")
+func (fm *FriendModule) RegisterRouter(r *gin.RouterGroup, requireAccessToken gin.HandlerFunc) {
+	friend := r.Group("/friends")
 
-	profile.GET("/:username", fm.friendHandler.HandlerFindUserByUsername)
-	friend.POST("/friend-request", middleware, fm.friendHandler.HandlerFriendRequest)
+	friend.GET("", requireAccessToken, fm.friendHandler.HandlerGetListFriends)
+
+	friendRequests := r.Group("/friend-requests")
+	friendRequests.POST("", requireAccessToken, fm.friendHandler.HandlerCreateFriendRequest)
+	friendRequests.GET("/sent", requireAccessToken, fm.friendHandler.HandlerGetSentFriendRequests)
+	friendRequests.GET("/received", requireAccessToken, fm.friendHandler.HandlerGetReceivedFriendRequests)
+	friendRequests.POST("/:id/accept", requireAccessToken, fm.friendHandler.HandlerAcceptFriendRequest)
+	friendRequests.POST("/:id/reject", requireAccessToken, fm.friendHandler.HandlerRejectFriendRequest)
+	friendRequests.POST("/:id/cancel", requireAccessToken, fm.friendHandler.HandlerCancelFriendRequest)
 }

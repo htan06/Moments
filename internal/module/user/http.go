@@ -17,7 +17,7 @@ func NewUserHandler(userServie *UserService) *UserHandler {
 	}
 }
 
-func (uh *UserHandler) HandleGetInfo(c *gin.Context) {
+func (uh *UserHandler) HandleGetCurrentUserProfile(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	cur, exists := api.GetCurrentUser(c)
@@ -26,16 +26,16 @@ func (uh *UserHandler) HandleGetInfo(c *gin.Context) {
 		return
 	}
 
-	info, err := uh.userServie.GetInfo(ctx, cur.ID())
+	profile, err := uh.userServie.GetProfileById(ctx, cur.ID())
 	if err != nil {
 		api.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, info)
+	c.JSON(http.StatusOK, profile)
 }
 
-func (uh *UserHandler) HandleUpdateInfo(c *gin.Context) {
+func (uh *UserHandler) HandleUpdateProfile(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	cur, exists := api.GetCurrentUser(c)
@@ -55,7 +55,7 @@ func (uh *UserHandler) HandleUpdateInfo(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Successful"})
+	c.Status(http.StatusOK)
 }
 
 func (uh *UserHandler) HandleChangeReadStatus(c *gin.Context) {
@@ -78,7 +78,7 @@ func (uh *UserHandler) HandleChangeReadStatus(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Successful"})
+	c.Status(http.StatusOK)
 }
 
 func (uh *UserHandler) HandleUpdateUsername(c *gin.Context) {
@@ -101,5 +101,19 @@ func (uh *UserHandler) HandleUpdateUsername(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Successful"})
+	c.Status(http.StatusOK)
+}
+
+func (uh *UserHandler) HandlerFindUserByUsername(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	username := c.Param("username")
+
+	profile, err := uh.userServie.GetProfileByUserName(ctx, username)
+	if err != nil {
+		api.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, profile)
 }
