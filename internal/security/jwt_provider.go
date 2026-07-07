@@ -7,14 +7,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/errs"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/model"
+	model "github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
 )
 
 type UserClaimsAccess struct {
-	UserID    int64  `json:"user_id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Username  string `json:"username"`
+	UserID   int64  `json:"user_id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
@@ -36,10 +35,9 @@ func NewJWTProvider(cfg *config.JWTConfig) *JWTProvier {
 
 func (jp *JWTProvier) GenerateAccessToken(user model.User) (string, error) {
 	claim := UserClaimsAccess{
-		UserID:    user.ID,
-		FirstName: user.FirstName,
-		LastName:  *user.LastName,
-		Username:  user.Username,
+		UserID:   user.ID,
+		Name:     user.Name,
+		Username: user.Username,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.Email,
 			Issuer:    "echo-authenticator",
@@ -106,35 +104,4 @@ func (jp *JWTProvier) ParseRefreshToken(tokenString string) (UserClaimsRefresh, 
 		return UserClaimsRefresh{}, errs.NewError(errs.AuthenticationFailure, nil, errs.TokenInvalid)
 	}
 	return claim, nil
-}
-
-func (jp *JWTProvier) GenerateRegisterToken(email string) (string, error) {
-	claim := jwt.RegisteredClaims{
-		Subject:   email,
-		Issuer:    "echo-authenticator",
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(jp.cfg.TtlRegister())),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
-	signedToken, err := token.SignedString(jp.cfg.PrivateKeyRegister())
-	if err != nil {
-		return "", fmt.Errorf("JWTProvider[GenerateRegisterToken]: %w", err)
-	}
-	return signedToken, nil
-}
-
-func (jp *JWTProvier) ParseRegisterToken(tokenString string) (*jwt.Token, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		return jp.cfg.PrivateKeyRegister(), nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("JWTProvider[GenerateRegisterToken]: %w", err)
-	}
-
-	if !token.Valid {
-		return nil, errs.NewError(errs.AuthenticationFailure, nil, errs.TokenInvalid)
-	}
-	return token, nil
 }

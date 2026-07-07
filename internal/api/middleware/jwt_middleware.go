@@ -46,14 +46,15 @@ func (jwtm *JWTMiddleWare) RequireAccessToken() gin.HandlerFunc {
 func (jwtm *JWTMiddleWare) RequireRefreshToken() gin.HandlerFunc {
 
 	return func(c *gin.Context) {
-		var req RefreshTokenReq
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.Status(http.StatusBadRequest)
-			c.Abort()
+		authorization := c.GetHeader("Authorization")
+		parts := strings.Split(authorization, " ")
+		if parts[0] != "Bearer" {
 			return
 		}
 
-		claim, err := jwtm.jwtProvider.ParseRefreshToken(req.RefreshToken)
+		refreshToken := parts[1]
+
+		claim, err := jwtm.jwtProvider.ParseRefreshToken(refreshToken)
 		if err != nil {
 			c.Status(http.StatusUnauthorized)
 			c.Abort()

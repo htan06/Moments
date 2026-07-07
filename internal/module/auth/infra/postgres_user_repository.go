@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/htan06/echo-messenger-rest-api/internal/errs"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/model"
+	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,46 +22,59 @@ func NewPostgresUserRepository(conn *pgxpool.Pool) *PostgresUserRepository {
 	}
 }
 
-func (pur *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (model.User, error) {
-	query := `SELECT id, username, email, phone_number, first_name, last_name, status FROM identity.users WHERE email = $1;`
+func (pur *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (domain.User, error) {
+	query := `SELECT u.id, u.name, u.username, ui.email, ui.phone_number, ui.password_hash, ui.status 
+				FROM identity.user_identity ui
+				JOIN profile.users u ON ui.user_id = u.id
+				WHERE email = $1;`
 
-	user := model.User{}
-	if err := pur.conn.QueryRow(ctx, query, email).Scan(&user.ID, &user.Username, &user.Email, &user.PhoneNumber, &user.FirstName, &user.LastName, &user.Status); err != nil {
+	var user domain.User
+	if err := pur.conn.QueryRow(ctx, query, email).
+		Scan(&user.ID, &user.Name, &user.Username, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.Status); err != nil {
+
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.User{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
+			return domain.User{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
 		}
-		return model.User{}, fmt.Errorf("PostgresUserRepository[GetByEmail]: %w", err)
+		return domain.User{}, fmt.Errorf("PostgresUserRepository[GetByEmail]: %w", err)
 	}
 
 	return user, nil
 }
 
-func (pur *PostgresUserRepository) GetByID(ctx context.Context, id int64) (model.User, error) {
-	query := `SELECT id, username, email, phone_number, first_name, last_name, status FROM identity.users WHERE id = $1;`
+func (pur *PostgresUserRepository) GetByID(ctx context.Context, id int64) (domain.User, error) {
+	query := `SELECT u.id, u.name, u.username, ui.email, ui.phone_number, ui.password_hash, ui.status 
+				FROM identity.user_identity ui
+				JOIN profile.users u ON ui.user_id = u.id
+				WHERE u.id = $1;`
 
-	user := model.User{}
-	if err := pur.conn.QueryRow(ctx, query, id).Scan(&user.ID, &user.Username, &user.Email, &user.PhoneNumber, &user.FirstName, &user.LastName, &user.Status); err != nil {
+	var user domain.User
+	if err := pur.conn.QueryRow(ctx, query, id).
+		Scan(&user.ID, &user.Name, &user.Username, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.Status); err != nil {
+
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.User{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
+			return domain.User{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
 		}
-		return model.User{}, fmt.Errorf("PostgresUserRepository[GetByID]: %w", err)
+		return domain.User{}, fmt.Errorf("PostgresUserRepository[GetByID]: %w", err)
 	}
 
 	return user, nil
 }
 
-func (pur *PostgresUserRepository) Create(ctx context.Context, user model.User) error {
-	query := `INSERT INTO identity.users(username, email, phone_number, first_name, last_name) VALUES ($1, $2, $3, $4, $5);`
+func (pur *PostgresUserRepository) Create(ctx context.Context, user domain.User) error {
 
-	cmdTag, err := pur.conn.Exec(ctx, query, user.Username, user.Email, user.PhoneNumber, user.FirstName, user.LastName)
+	tx, err := pur.conn.Begin(ctx)
 	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var id int64
+	insertProfile := `INSERT INTO profile.users (username, name) VALUES ($1, $2) RETURNING id;`
+
+	if err := tx.QueryRow(ctx, insertProfile, user.Username, user.Name).Scan(&id); err != nil {
 		e := errs.NewError(errs.Conflict, err)
 		if pgerr, ok := errors.AsType[*pgconn.PgError](err); ok && pgerr.Code == "23505" {
 			switch pgerr.ConstraintName {
-			case "users_email_key":
-				e.AddCode(errs.EmailAlreadyUsed)
-			case "users_phone_number_key":
-				e.AddCode(errs.PhoneNumberAlreadyUsed)
 			case "users_username_key":
 				e.AddCode(errs.UsernameAlreadyUsed)
 			}
@@ -70,8 +83,44 @@ func (pur *PostgresUserRepository) Create(ctx context.Context, user model.User) 
 		return fmt.Errorf("PostgresUserRepository[GetByEmail]: %w", err)
 	}
 
-	if cmdTag.RowsAffected() != 1 {
-		return fmt.Errorf("PostgresUserRepository[GetByEmail]: Can not insert user")
+	insertIdentity := `INSERT INTO identity.user_identity (user_id, email, password_hash) VALUES ($1, $2, $3);`
+	cmd, err := tx.Exec(ctx, insertIdentity, id, user.Email, user.PasswordHash)
+	if err != nil {
+		return err
+	}
+
+	if cmd.RowsAffected() == 0 {
+		return errors.New("can not create user identity")
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pur *PostgresUserRepository) UpdateLastLogin(ctx context.Context, user domain.User) error {
+	query := `UPDATE identity.user_identity SET last_login_at = $1 WHERE user_id = $2;`
+
+	cmd, err := pur.conn.Exec(ctx, query, user.LastLoginAt, user.ID)
+	if err != nil {
+		return err
+	}
+	if cmd.RowsAffected() != 1 {
+		return errors.New("Row affected by update last login at != 1")
+	}
+	return nil
+}
+
+func (pur *PostgresUserRepository) UpdatePassword(ctx context.Context, user domain.User) error {
+	query := `UPDATE identity.user_identity SET password_hash = $1 WHERE user_id = $2;`
+
+	cmd, err := pur.conn.Exec(ctx, query, user.PasswordHash, user.ID)
+	if err != nil {
+		return err
+	}
+	if cmd.RowsAffected() != 1 {
+		return errors.New("Row affected by update password != 1")
 	}
 	return nil
 }

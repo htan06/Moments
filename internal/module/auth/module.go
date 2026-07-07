@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/infra"
+	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/usecase"
 	"github.com/htan06/echo-messenger-rest-api/internal/security"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -25,23 +26,32 @@ func InitAuthModule(
 	userRepo := infra.NewPostgresUserRepository(postgresConn)
 	cacheRepository := infra.NewRedisCacheRepository(redisConn)
 	emailOTPSender := infra.NewGmailOTPSender(dialer, mailAddress)
-
 	otpProvider := security.NewOTPProvider()
 
-	authService := NewAuthenticationService(userRepo, cacheRepository, emailOTPSender, jwtProvider, otpProvider)
+	registerUsecase := usecase.NewRegisterUsecase(otpProvider, cacheRepository, emailOTPSender)
+	verifyRegisterOTP := usecase.NewVerifyRegisterOTPUsecase(userRepo, cacheRepository, jwtProvider)
+	loginPasswordUsecase := usecase.NewLoginPasswordUsecase(userRepo, jwtProvider)
+	changePasswordUsecase := usecase.NewChangePasswordUsecase(userRepo)
+	refreshTokenUsecase := usecase.NewRefreshTokenUsecase(userRepo, jwtProvider)
 
-	authHandler := NewAuthenticationHandler(authService)
+	authHandler := NewAuthHandler(
+		registerUsecase,
+		verifyRegisterOTP,
+		loginPasswordUsecase,
+		changePasswordUsecase,
+		refreshTokenUsecase)
 
 	return &AuthModule{
 		authHandler: authHandler,
 	}
 }
 
-func (am *AuthModule) RegisterRouter(r *gin.RouterGroup, requireRefreshToken gin.HandlerFunc) {
+func (am *AuthModule) RegisterRouter(r *gin.RouterGroup, requireAccessToken gin.HandlerFunc, requireRefreshToken gin.HandlerFunc) {
 	auth := r.Group("/auth")
 
-	auth.POST("/require-otp", am.authHandler.handleRequireOTP)
-	auth.POST("/verify-otp", am.authHandler.handleVerifyOTP)
-	auth.POST("/register", am.authHandler.handleRegisterUser)
-	auth.POST("/refresh-token", requireRefreshToken, am.authHandler.handleRefreshToken)
+	auth.POST("/register", am.authHandler.handleRegisterUsecase)
+	auth.POST("/register/verify-otp", am.authHandler.handleVerifyRegisterOTPUsecase)
+	auth.POST("/login/password", am.authHandler.handleLoginPasswordUsecase)
+	auth.PATCH("/change-password", requireAccessToken, am.authHandler.handleChangePasswordUsecase)
+	auth.POST("/refresh-token", requireRefreshToken, am.authHandler.handleRefreshTokenUsecase)
 }

@@ -11,6 +11,7 @@ import (
 
 var errorTypeTable = map[errs.ErrorType]int{
 	errs.Invalid:               http.StatusUnprocessableEntity,
+	errs.Incorrect:             http.StatusUnprocessableEntity,
 	errs.Conflict:              http.StatusConflict,
 	errs.NotFound:              http.StatusNotFound,
 	errs.AuthenticationFailure: http.StatusUnauthorized,
@@ -25,7 +26,7 @@ func HandleError(c *gin.Context, err error) {
 			return
 		}
 	}
-	
+
 	fmt.Println("ERROR: ", err.Error())
 	c.Status(http.StatusInternalServerError)
 }

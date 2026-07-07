@@ -18,14 +18,12 @@ type JWTConfig struct {
 	privateKeyRefresh *rsa.PrivateKey
 	publicKeyRefresh  *rsa.PublicKey
 	ttlRefresh        time.Duration
-
-	privateKeyRegister []byte
-	ttlRegister        time.Duration
 }
 
 func GetJWTConfig(publicData []byte, privateData []byte) *JWTConfig {
 
 	var jwtConfig JWTConfig
+
 	//TTL
 	ttlAccessToken, err := strconv.Atoi(os.Getenv("TOKEN_ACCESS_TTL"))
 	if err != nil {
@@ -38,12 +36,7 @@ func GetJWTConfig(publicData []byte, privateData []byte) *JWTConfig {
 		log.Fatal("JWT config: cannot parse ttl refresh token: " + err.Error())
 	}
 	jwtConfig.ttlRefresh = time.Second * time.Duration(ttlRefreshtoken)
-	
-	ttlRegistertoken, err := strconv.Atoi(os.Getenv("TOKEN_REGISTER_TTL"))
-	if err != nil {
-		log.Fatal("JWT config: cannot parse ttl register token: " + err.Error())
-	}
-	jwtConfig.ttlRegister = time.Second * time.Duration(ttlRegistertoken)
+
 
 	for {
 		block, rest := pem.Decode(privateData)
@@ -63,8 +56,6 @@ func GetJWTConfig(publicData []byte, privateData []byte) *JWTConfig {
 				log.Fatal(err.Error())
 			}
 			jwtConfig.privateKeyAccess = key.(*rsa.PrivateKey)
-		case "REGISTER PRIVATE KEY":
-			jwtConfig.privateKeyRegister = block.Bytes
 		}
 		privateData = rest
 	}
@@ -106,18 +97,10 @@ func (j *JWTConfig) PublicKeyRefresh() *rsa.PublicKey {
 	return j.publicKeyRefresh
 }
 
-func (j *JWTConfig) PrivateKeyRegister() []byte {
-	return j.privateKeyRegister
-}
-
 func (j *JWTConfig) TtlAccess() time.Duration {
 	return j.ttlAccess
 }
 
 func (j *JWTConfig) TtlRefresh() time.Duration {
 	return j.ttlRefresh
-}
-
-func (j *JWTConfig) TtlRegister() time.Duration {
-	return j.ttlRegister
 }

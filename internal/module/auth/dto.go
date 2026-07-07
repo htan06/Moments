@@ -1,32 +1,48 @@
 package auth
 
-type requireOTPReq struct {
-	Email string `json:"email"`
+import "github.com/htan06/echo-messenger-rest-api/internal/module/auth/usecase"
+
+type RegisterReq struct {
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
-type VerifyOTPReq struct {
+func (r RegisterReq) ToRegisterCmd() usecase.RegisterCmd {
+	return usecase.RegisterCmd{
+		Email:    r.Email,
+		Password: r.Password,
+		Name:     r.Name,
+		Username: r.Username,
+	}
+}
+
+type VerifyRegisterOTPReq struct {
 	Email string `json:"email"`
 	OTP   string `json:"otp"`
 }
 
-type TokenType string
-
-const (
-	LoginType    TokenType = "LOGIN"
-	RegisterType TokenType = "REGISTER"
-)
-
-type VerifyOTPResp struct {
-	Type          TokenType `json:"type"`
-	RegisterToken string    `json:"register_token,omitempty"`
-	AccessToken   string    `json:"access_token,omitempty"`
-	RefreshToken  string    `json:"refresh_token,omitempty"`
+func (r VerifyRegisterOTPReq) ToVerifyRegisterOTPCmd() usecase.VerifyRegisterOTPCmd {
+	return usecase.VerifyRegisterOTPCmd{
+		Email: r.Email,
+		OTP:   r.OTP,
+	}
 }
 
-type RegisterUserReq struct {
-	FirstName     string `json:"first_name"`
-	LastName      string `json:"last_name"`
-	Username      string `json:"username"`
-	PhoneNumber   string `json:"phone_number"`
-	RegisterToken string `json:"register_token"`
+type LoginPasswordReq struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (r LoginPasswordReq) ToLoginPasswordCmd() usecase.LoginPasswordCmd {
+	return usecase.LoginPasswordCmd{
+		Email:    r.Email,
+		Password: r.Password,
+	}
+}
+
+type ChangePasswordReq struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
 }

@@ -18,7 +18,7 @@ import (
 func main() {
 	wd, _ := os.Getwd()
 	fmt.Println("cwd:", wd)
-	
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("WAR: Cannot load .env file")
@@ -27,7 +27,7 @@ func main() {
 	privateKeyPath := os.Getenv("PRIVATE_KEY_PATH")
 	privateData, err := os.ReadFile(privateKeyPath)
 	if err != nil {
-		log.Fatal("Cannot load jwt private key",  err.Error())
+		log.Fatal("Cannot load jwt private key", err.Error())
 	}
 
 	publicKeyPath := os.Getenv("PUBLIC_KEY_PATH")
@@ -35,7 +35,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Cannot load jwt public key", err.Error())
 	}
-	
+
 	jwtConfig := config.GetJWTConfig(publicData, privateData)
 	jwtProvider := security.NewJWTProvider(jwtConfig)
 
@@ -47,14 +47,13 @@ func main() {
 	jwtMiddleware := middleware.NewJWTMiddleware(jwtProvider)
 
 	router := gin.Default()
-	
+
 	router.Use(middleware.CORSMiddleware())
-	
+
 	v1 := router.Group("/api/v1")
 
-
 	authModule := auth.InitAuthModule(postgresConn, redisConn, gmailDialer, jwtProvider, mailAddress)
-	authModule.RegisterRouter(v1, jwtMiddleware.RequireRefreshToken())
+	authModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken(), jwtMiddleware.RequireRefreshToken())
 
 	userModule := user.InitUserModule(postgresConn)
 	userModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())

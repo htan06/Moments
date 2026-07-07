@@ -12,6 +12,7 @@ const (
 	Conflict              ErrorType = "CONFLICT"
 	NotFound              ErrorType = "NOT_FOUND"
 	AuthenticationFailure ErrorType = "AUTHENTICATION_FAILURE"
+	Incorrect             ErrorType = "INCORRECT"
 )
 
 const (
@@ -23,10 +24,13 @@ const (
 	ReceiverNotFound      ErrorCode = "RECEIVER_NOT_FOUND"
 	FriendRequestNotFound ErrorCode = "FRIEND_REQEST_NOT_FOUND"
 
-	IncorrectOTP         ErrorCode = "INCORRCET_OTP"
-	UserNonActive        ErrorCode = "USER_NON_ACTIVE"
-	TokenInvalid         ErrorCode = "TOKEN_INVALID"
-	FriendRequestInvalid ErrorCode = "FRIEND_REQUEST_INVALID"
+	IncorrectOTP ErrorCode = "INCORRCET_OTP"
+
+	InvalidUsernameOrPassword ErrorCode = "INVALID_USERNAME_OR_PASSWORD"
+	UserNonActive             ErrorCode = "USER_NON_ACTIVE"
+	TokenInvalid              ErrorCode = "TOKEN_INVALID"
+	FriendRequestInvalid      ErrorCode = "FRIEND_REQUEST_INVALID"
+	UsernameInvalid           ErrorCode = "USERNAME_INVALID"
 )
 
 type Error struct {

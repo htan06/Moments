@@ -20,7 +20,7 @@ func NewGmailOTPSender(dialer *gomail.Dialer, mailAddress *config.MailAddress) *
 	}
 }
 
-func (gs *GmailOTPSender) Send(ctx context.Context, email string, otp string) error {
+func (gs *GmailOTPSender) SendOTP(ctx context.Context, email string, otp string) error {
 	m := gomail.NewMessage()
 	m.SetAddressHeader("From", gs.mailAddress.Email, gs.mailAddress.Name)
 	m.SetHeader("To", email)
