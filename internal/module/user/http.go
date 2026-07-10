@@ -5,115 +5,70 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/htan06/echo-messenger-rest-api/internal/api"
+	"github.com/htan06/echo-messenger-rest-api/internal/module/user/usecase"
 )
 
 type UserHandler struct {
-	userServie *UserService
+	getProfileUsecase    *usecase.GetProfileUsecase
+	updateProfileUsecase *usecase.UpdateProfileUsecase
 }
 
-func NewUserHandler(userServie *UserService) *UserHandler {
+func NewUserHandler(
+	getProfileUsecase *usecase.GetProfileUsecase,
+	updateProfileUsecase *usecase.UpdateProfileUsecase,
+) *UserHandler {
 	return &UserHandler{
-		userServie: userServie,
+		getProfileUsecase:    getProfileUsecase,
+		updateProfileUsecase: updateProfileUsecase,
 	}
 }
 
-func (uh *UserHandler) HandleGetCurrentUserProfile(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	cur, exists := api.GetCurrentUser(c)
-	if !exists {
-		c.Status(http.StatusUnauthorized)
-		return
-	}
-
-	profile, err := uh.userServie.GetProfileById(ctx, cur.ID())
-	if err != nil {
-		api.HandleError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, profile)
-}
-
-func (uh *UserHandler) HandleUpdateProfile(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	cur, exists := api.GetCurrentUser(c)
-	if !exists {
-		c.Status(http.StatusUnauthorized)
-		return
-	}
-
-	var req UpdateInfoReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Status(http.StatusBadRequest)
-		return
-	}
-
-	if err := uh.userServie.UpdateInfo(ctx, cur.ID(), req); err != nil {
-		api.HandleError(c, err)
-		return
-	}
-
-	c.Status(http.StatusOK)
-}
-
-func (uh *UserHandler) HandleChangeReadStatus(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	cur, exists := api.GetCurrentUser(c)
-	if !exists {
-		c.Status(http.StatusUnauthorized)
-		return
-	}
-
-	var req ChangeReadStatusReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Status(http.StatusBadRequest)
-		return
-	}
-
-	if err := uh.userServie.ChangeReadStatus(ctx, cur.ID(), req); err != nil {
-		api.HandleError(c, err)
-		return
-	}
-
-	c.Status(http.StatusOK)
-}
-
-func (uh *UserHandler) HandleUpdateUsername(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	cur, exists := api.GetCurrentUser(c)
-	if !exists {
-		c.Status(http.StatusUnauthorized)
-		return
-	}
-
-	var req UpdateUsernameReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Status(http.StatusBadRequest)
-		return
-	}
-
-	if err := uh.userServie.UpdateUsername(ctx, cur.ID(), req); err != nil {
-		api.HandleError(c, err)
-		return
-	}
-
-	c.Status(http.StatusOK)
-}
-
-func (uh *UserHandler) HandlerFindUserByUsername(c *gin.Context) {
+func (uh *UserHandler) HandlerGetProfile(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	username := c.Param("username")
+	if username == "" {
+		c.Status(http.StatusBadRequest)
+		return
+	}
 
-	profile, err := uh.userServie.GetProfileByUserName(ctx, username)
+	profile, err := uh.getProfileUsecase.Excute(ctx, username)
 	if err != nil {
 		api.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, profile)
+	c.JSON(http.StatusOK, ToProfileResponse(&profile))
+}
+
+func (uh *UserHandler) HandlerUpdateProfile(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var req UpdateProfileReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	currentuser, exists := api.GetCurrentUser(c)
+	if !exists {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	cmd := usecase.UpdateProfileCmd{
+		UserID:    currentuser.ID(),
+		Username:  req.Username,
+		Name:      req.Name,
+		AvatarURL: req.AvatarURL,
+		Bio:       req.Bio,
+	}
+
+	profile, err := uh.updateProfileUsecase.Excute(ctx, cmd)
+	if err != nil {
+		api.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, ToProfileResponse(&profile))
 }

@@ -3,6 +3,7 @@ package user
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/user/infra"
+	"github.com/htan06/echo-messenger-rest-api/internal/module/user/usecase"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -15,9 +16,10 @@ func InitUserModule(
 ) *UserModule {
 	userRepo := infra.NewPostgresUserRepository(postgresConn)
 
-	userService := NewUserService(userRepo)
-
-	userHandler := NewUserHandler(userService)
+	// userService := NewUserService(userRepo)
+	getProfileUsecase := usecase.NewGetProfileUsecase(userRepo)
+	updateProfileUsecase := usecase.NewUpdateProfileUsecase(userRepo)
+	userHandler := NewUserHandler(getProfileUsecase, updateProfileUsecase)
 
 	return &UserModule{
 		userHandler: userHandler,
@@ -25,11 +27,10 @@ func InitUserModule(
 }
 
 func (um *UserModule) RegisterRouter(r *gin.RouterGroup, requireAccessTokenMiddleware gin.HandlerFunc) {
-	user := r.Group("/users")
+	user := r.Group("/profiles")
 
-	user.GET("/me/profile", requireAccessTokenMiddleware, um.userHandler.HandleGetCurrentUserProfile)
-	user.GET("/:username/profile", requireAccessTokenMiddleware, um.userHandler.HandlerFindUserByUsername)
-	user.PATCH("/me/profile", requireAccessTokenMiddleware, um.userHandler.HandleUpdateProfile)
-	user.PATCH("/me/setting/read-status", requireAccessTokenMiddleware, um.userHandler.HandleChangeReadStatus)
-	user.PATCH("/me/username", requireAccessTokenMiddleware, um.userHandler.HandleUpdateUsername)
+	user.GET("/:username", requireAccessTokenMiddleware, um.userHandler.HandlerGetProfile)
+	user.PATCH("/me", requireAccessTokenMiddleware, um.userHandler.HandlerUpdateProfile)
+	// user.PATCH("/me/setting/read-status", requireAccessTokenMiddleware, um.userHandler.HandleChangeReadStatus)
+	// user.PATCH("/me/username", requireAccessTokenMiddleware, um.userHandler.HandleUpdateUsername)
 }
