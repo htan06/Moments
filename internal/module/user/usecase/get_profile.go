@@ -2,7 +2,9 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/user/domain"
 )
 
@@ -16,10 +18,15 @@ func NewGetProfileUsecase(userRepo domain.UserRepository) *GetProfileUsecase {
 	}
 }
 
-func (gpu *GetProfileUsecase) Excute(ctx context.Context, username string) (domain.UserProfile, error) {
-	up, err := gpu.userRepo.GetProfileByUsername(ctx, username)
+func (gpu *GetProfileUsecase) Excute(ctx context.Context, username string) (domain.ProfileQry, error) {
+	profile, err := gpu.userRepo.GetProfileByUsername(ctx, username)
+
 	if err != nil {
-		return domain.UserProfile{}, err
+		return domain.ProfileQry{}, fmt.Errorf("ChangeAvatarUsecase.Excute: %w", err)
 	}
-	return up, nil
+
+	if profile.AvatarURL != nil {
+		*profile.AvatarURL = config.StorageAddress + "/avatars/" + *profile.AvatarURL
+	}
+	return profile, nil
 }

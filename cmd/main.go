@@ -9,7 +9,7 @@ import (
 	"github.com/htan06/echo-messenger-rest-api/internal/api/middleware"
 	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/friend"
+	"github.com/htan06/echo-messenger-rest-api/internal/module/follow"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/user"
 	"github.com/htan06/echo-messenger-rest-api/internal/security"
 	"github.com/joho/godotenv"
@@ -36,6 +36,7 @@ func main() {
 		log.Fatal("Cannot load jwt public key", err.Error())
 	}
 
+	config.GetStorageAddress()
 	jwtConfig := config.GetJWTConfig(publicData, privateData)
 	jwtProvider := security.NewJWTProvider(jwtConfig)
 
@@ -43,6 +44,7 @@ func main() {
 	postgresConn := config.GetPostgresConn()
 	gmailDialer := config.GetGmailDialer()
 	mailAddress := config.GetMailAddress()
+	objectStorageConn := config.GetMinIOConn()
 
 	jwtMiddleware := middleware.NewJWTMiddleware(jwtProvider)
 
@@ -55,10 +57,11 @@ func main() {
 	authModule := auth.InitAuthModule(postgresConn, redisConn, gmailDialer, jwtProvider, mailAddress)
 	authModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken(), jwtMiddleware.RequireRefreshToken())
 
-	userModule := user.InitUserModule(postgresConn)
+	userModule := user.InitUserModule(postgresConn, redisConn, objectStorageConn)
 	userModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
 
-	friendModule := friend.InitFriendModule(postgresConn)
-	friendModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
+	followModule := follow.InitFollowModule(postgresConn)
+	followModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
+
 	router.Run("0.0.0.0:8080")
 }

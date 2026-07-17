@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/htan06/echo-messenger-rest-api/internal/errs"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
@@ -42,12 +43,12 @@ func (cu *ChangePasswordUsecase) Excute(ctx context.Context, cmd ChangePasswordC
 
 	newPasswordHash, err := bcrypt.GenerateFromPassword([]byte(cmd.NewPassword), 10)
 	if err != nil {
-		return err
+		return fmt.Errorf("ChangePasswordUsecase.Excute %w", err)
 	}
 
 	user.PasswordHash = string(newPasswordHash)
 	if err := cu.userRepo.UpdatePassword(ctx, user); err != nil {
-		return err
+		return fmt.Errorf("ChangePasswordUsecase.Excute %w", err)
 	}
 	return nil
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/htan06/echo-messenger-rest-api/internal/errs"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/user/domain"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -23,44 +22,60 @@ func NewPostgresUserRepository(conn *pgxpool.Pool) *PostgresUserRepository {
 	}
 }
 
-func (pur *PostgresUserRepository) UpdateProfile(ctx context.Context, userID int64, fieldUpdates map[string]interface{}) (domain.UserProfile, error) {
+func (pur *PostgresUserRepository) GetAvatarIDByUserID(ctx context.Context, userID int64) (string, error) {
+	query := `SELECT avatar_id FROM profile.users WHERE id = $1;`
+
+	var id string
+	if err := pur.conn.QueryRow(ctx, query, userID).Scan(&id); err != nil {
+		return "", fmt.Errorf("PostgresUserRepository.GetAvatarIDByUserID: %w", err)
+	}
+	return id, nil
+}
+
+func (pur *PostgresUserRepository) UpdateProfile(ctx context.Context, userID int64, fieldUpdates map[string]interface{}) error {
 	queryBuilder := squirrel.Update("profile.users").
 		SetMap(fieldUpdates).
 		Where("id = ?", userID).
-		Suffix("RETURNING id, username, name, avatar_url, bio").
 		PlaceholderFormat(squirrel.Dollar)
 
 	query, args, err := queryBuilder.ToSql()
 	if err != nil {
-		return domain.UserProfile{}, err
+		return fmt.Errorf("PostgresUserRepository.UpdateProfile: %w", err)
 	}
 
-	var up domain.UserProfile
-	if err := pur.conn.QueryRow(ctx, query, args...).Scan(&up.ID, &up.Username, &up.Name, &up.AvatarURL, &up.Bio); err != nil {
-		if pgerr, ok := errors.AsType[*pgconn.PgError](err); ok {
-			if pgerr.Code == "23505" && pgerr.ConstraintName == "users_username_key" {
-				return domain.UserProfile{}, errs.NewError(errs.Conflict, pgerr, errs.UsernameAlreadyUsed)
-			}
-		}
-		return domain.UserProfile{}, fmt.Errorf("PostgresUserRepository[UpdateUsername]: %w", err)
+	if _, err := pur.conn.Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("PostgresUserRepository.UpdateProfile: %w", err)
 	}
-	return up, nil
+	return nil
 }
 
-func (pur *PostgresUserRepository) GetProfileByUsername(ctx context.Context, username string) (domain.UserProfile, error) {
-	query := `SELECT id, username, name, avatar_url, bio, followers_count, following_count, posts_count
+func (pur *PostgresUserRepository) GetProfileByUsername(ctx context.Context, username string) (domain.ProfileQry, error) {
+	query := `SELECT id, username, name, avatar_id, bio, followers_count, following_count, posts_count
 				FROM profile.users
 				WHERE username = $1;`
 
-	var up domain.UserProfile
-	if err := pur.conn.QueryRow(ctx, query, username).
-		Scan(&up.ID, &up.Username, &up.Name, &up.AvatarURL, &up.Bio, &up.FollowersCount, &up.FollowingCount, &up.PostsCount); err != nil {
-
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.UserProfile{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
-		}
-		return domain.UserProfile{}, fmt.Errorf("PostgresUserRepository[FindByUsername]: %w", err)
+	row, err := pur.conn.Query(ctx, query, username)
+	if err != nil {
+		return domain.ProfileQry{}, fmt.Errorf("PostgresUserRepository.GetProfileByUsername: %w", err)
 	}
 
-	return up, nil
+	profile, err := pgx.CollectOneRow[domain.ProfileQry](row, pgx.RowToStructByName)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ProfileQry{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
+		}
+		return domain.ProfileQry{}, fmt.Errorf("PostgresUserRepository[FindByUsername]: %w", err)
+	}
+
+	return profile, nil
+}
+
+func (pur *PostgresUserRepository) UpdateAvatarID(ctx context.Context, userID int64, avatarID string) error {
+	query := `UPDATE profile.users SET avatar_id = $1 WHERE id = $2;`
+
+	if _, err := pur.conn.Exec(ctx, query, avatarID, userID); err != nil {
+		return fmt.Errorf("PostgresUserRepository.UpdateAvatarID: %w", err)
+	}
+	return nil
 }

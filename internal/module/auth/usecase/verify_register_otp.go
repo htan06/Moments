@@ -37,15 +37,15 @@ func NewVerifyRegisterOTPUsecase(
 	}
 }
 
-func (vru *VerifyRegisterOTPUsecase) Excute(ctx context.Context, cmd VerifyRegisterOTPCmd) (VerifyRegisterOTPRes, error) {
+func (vru *VerifyRegisterOTPUsecase) Excute(ctx context.Context, cmd VerifyRegisterOTPCmd) error {
 	key := fmt.Sprintf("auth-register:%s", cmd.Email)
 	userPending, err := vru.cacheRepo.GetUserPending(ctx, key)
 	if err != nil {
-		return VerifyRegisterOTPRes{}, err
+		return err
 	}
 
 	if userPending.OTP != cmd.OTP {
-		return VerifyRegisterOTPRes{}, errs.NewError(errs.Invalid, nil, errs.IncorrectOTP)
+		return errs.NewError(errs.Invalid, nil, errs.IncorrectOTP)
 	}
 
 	user := domain.User{
@@ -56,21 +56,8 @@ func (vru *VerifyRegisterOTPUsecase) Excute(ctx context.Context, cmd VerifyRegis
 	}
 
 	if err := vru.userRepo.Create(ctx, user); err != nil {
-		return VerifyRegisterOTPRes{}, err
+		return err
 	}
 
-	accessToken, err := vru.jwtProvider.GenerateAccessToken(user)
-	if err != nil {
-		return VerifyRegisterOTPRes{}, err
-	}
-
-	refreshToken, err := vru.jwtProvider.GenerateRefreshToken(user)
-	if err != nil {
-		return VerifyRegisterOTPRes{}, err
-	}
-
-	return VerifyRegisterOTPRes{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	}, nil
+	return nil
 }

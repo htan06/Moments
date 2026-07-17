@@ -5,6 +5,8 @@ import (
 	"github.com/htan06/echo-messenger-rest-api/internal/module/user/infra"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/user/usecase"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/minio/minio-go/v7"
+	"github.com/redis/go-redis/v9"
 )
 
 type UserModule struct {
@@ -13,13 +15,17 @@ type UserModule struct {
 
 func InitUserModule(
 	postgresConn *pgxpool.Pool,
+	redisConn *redis.Client,
+	storageConn *minio.Client,
 ) *UserModule {
 	userRepo := infra.NewPostgresUserRepository(postgresConn)
-
-	// userService := NewUserService(userRepo)
+	cacheRepo := infra.NewRedisCacheRepository(redisConn)
+	objectStorage := infra.NewMinIOStorage(storageConn)
+	
 	getProfileUsecase := usecase.NewGetProfileUsecase(userRepo)
 	updateProfileUsecase := usecase.NewUpdateProfileUsecase(userRepo)
-	userHandler := NewUserHandler(getProfileUsecase, updateProfileUsecase)
+	changeAvatarUsecase := usecase.NewChangeAvatarUsecase(userRepo, cacheRepo, objectStorage)
+	userHandler := NewUserHandler(getProfileUsecase, updateProfileUsecase, changeAvatarUsecase)
 
 	return &UserModule{
 		userHandler: userHandler,
@@ -31,6 +37,6 @@ func (um *UserModule) RegisterRouter(r *gin.RouterGroup, requireAccessTokenMiddl
 
 	user.GET("/:username", requireAccessTokenMiddleware, um.userHandler.HandlerGetProfile)
 	user.PATCH("/me", requireAccessTokenMiddleware, um.userHandler.HandlerUpdateProfile)
-	// user.PATCH("/me/setting/read-status", requireAccessTokenMiddleware, um.userHandler.HandleChangeReadStatus)
-	// user.PATCH("/me/username", requireAccessTokenMiddleware, um.userHandler.HandleUpdateUsername)
+	user.GET("/upload-avatar-url", requireAccessTokenMiddleware, um.userHandler.HandlerGetUrlUploadAvatar)
+	user.PATCH("/me/avatar", requireAccessTokenMiddleware, um.userHandler.HandlerCompletedUpload)
 }

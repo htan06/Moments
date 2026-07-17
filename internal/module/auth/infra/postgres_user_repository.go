@@ -35,7 +35,7 @@ func (pur *PostgresUserRepository) GetByEmail(ctx context.Context, email string)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.User{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
 		}
-		return domain.User{}, fmt.Errorf("PostgresUserRepository[GetByEmail]: %w", err)
+		return domain.User{}, fmt.Errorf("PostgresUserRepository.GetByEmail.: %w", err)
 	}
 
 	return user, nil
@@ -54,7 +54,7 @@ func (pur *PostgresUserRepository) GetByID(ctx context.Context, id int64) (domai
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.User{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
 		}
-		return domain.User{}, fmt.Errorf("PostgresUserRepository[GetByID]: %w", err)
+		return domain.User{}, fmt.Errorf("PostgresUserRepository.GetByID: %w", err)
 	}
 
 	return user, nil
@@ -64,7 +64,7 @@ func (pur *PostgresUserRepository) Create(ctx context.Context, user domain.User)
 
 	tx, err := pur.conn.Begin(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("PostgresUserRepository.Create: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
@@ -72,29 +72,27 @@ func (pur *PostgresUserRepository) Create(ctx context.Context, user domain.User)
 	insertProfile := `INSERT INTO profile.users (username, name) VALUES ($1, $2) RETURNING id;`
 
 	if err := tx.QueryRow(ctx, insertProfile, user.Username, user.Name).Scan(&id); err != nil {
-		e := errs.NewError(errs.Conflict, err)
 		if pgerr, ok := errors.AsType[*pgconn.PgError](err); ok && pgerr.Code == "23505" {
 			switch pgerr.ConstraintName {
 			case "users_username_key":
-				e.AddCode(errs.UsernameAlreadyUsed)
+				return errs.NewError(errs.Conflict, err, errs.UsernameAlreadyUsed)
 			}
-			return e
 		}
-		return fmt.Errorf("PostgresUserRepository[GetByEmail]: %w", err)
+		return fmt.Errorf("PostgresUserRepository.Create: %w", err)
 	}
 
 	insertIdentity := `INSERT INTO identity.user_identity (user_id, email, password_hash) VALUES ($1, $2, $3);`
 	cmd, err := tx.Exec(ctx, insertIdentity, id, user.Email, user.PasswordHash)
 	if err != nil {
-		return err
+		return fmt.Errorf("PostgresUserRepository.Create: %w", err)
 	}
 
 	if cmd.RowsAffected() == 0 {
-		return errors.New("can not create user identity")
+		return fmt.Errorf("PostgresUserRepository.Create: insert user_identity failure")
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return err
+		return fmt.Errorf("PostgresUserRepository.Create: commit failure")
 	}
 	return nil
 }
@@ -104,10 +102,10 @@ func (pur *PostgresUserRepository) UpdateLastLogin(ctx context.Context, user dom
 
 	cmd, err := pur.conn.Exec(ctx, query, user.LastLoginAt, user.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("PostgresUserRepository.UpdateLastLogin: %w", err)
 	}
 	if cmd.RowsAffected() != 1 {
-		return errors.New("Row affected by update last login at != 1")
+		return fmt.Errorf("PostgresUserRepository.UpdateLastLogin: update user_identity failure")
 	}
 	return nil
 }
@@ -117,10 +115,10 @@ func (pur *PostgresUserRepository) UpdatePassword(ctx context.Context, user doma
 
 	cmd, err := pur.conn.Exec(ctx, query, user.PasswordHash, user.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("PostgresUserRepository.UpdatePassword: %w", err)
 	}
 	if cmd.RowsAffected() != 1 {
-		return errors.New("Row affected by update password != 1")
+		return fmt.Errorf("PostgresUserRepository.UpdatePassword: update user_identity failure")
 	}
 	return nil
 }

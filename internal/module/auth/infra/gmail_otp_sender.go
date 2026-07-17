@@ -28,7 +28,7 @@ func (gs *GmailOTPSender) SendOTP(ctx context.Context, email string, otp string)
 	m.SetBody("text/plain", "Your OTP code is "+otp)
 
 	if err := gs.dialer.DialAndSend(m); err != nil {
-		return fmt.Errorf("GmailOTPSender[Send]: %w", err)
+		return fmt.Errorf("GmailOTPSender.Send: %w", err)
 	}
 	return nil
 }

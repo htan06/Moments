@@ -31,6 +31,7 @@ const (
 	TokenInvalid              ErrorCode = "TOKEN_INVALID"
 	FriendRequestInvalid      ErrorCode = "FRIEND_REQUEST_INVALID"
 	UsernameInvalid           ErrorCode = "USERNAME_INVALID"
+	FollowInvalid             ErrorCode = "FOLLOW_INVALID"
 )
 
 type Error struct {

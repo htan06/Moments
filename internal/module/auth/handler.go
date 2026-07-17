@@ -35,13 +35,25 @@ func NewAuthHandler(
 func (ah *AuthHandler) handleRegisterUsecase(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var req RegisterReq
+	var req struct {
+		Email    string `json:"email"`
+		Name     string `json:"name"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Status(http.StatusBadRequest)
 		return
 	}
 
-	if err := ah.registerUsecase.Excute(ctx, req.ToRegisterCmd()); err != nil {
+	cmd := usecase.RegisterCmd{
+		Email:    req.Email,
+		Name:     req.Name,
+		Username: req.Username,
+		Password: req.Password,
+	}
+
+	if err := ah.registerUsecase.Excute(ctx, cmd); err != nil {
 		api.HandleError(c, err)
 		return
 	}
@@ -51,40 +63,53 @@ func (ah *AuthHandler) handleRegisterUsecase(c *gin.Context) {
 func (ah *AuthHandler) handleVerifyRegisterOTPUsecase(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var req VerifyRegisterOTPReq
+	var req struct {
+		Email string `json:"email"`
+		OTP   string `json:"otp"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Status(http.StatusBadRequest)
 		return
 	}
 
-	res, err := ah.verifyRegisterOTPUsecase.Excute(ctx, req.ToVerifyRegisterOTPCmd())
-	if err != nil {
+	cmd := usecase.VerifyRegisterOTPCmd{
+		Email: req.Email,
+		OTP:   req.OTP,
+	}
+	if err := ah.verifyRegisterOTPUsecase.Excute(ctx, cmd); err != nil {
 		api.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"access_token":  res.AccessToken,
-		"refresh_token": res.RefreshToken,
-	})
+	c.Status(http.StatusNoContent)
 }
 
 func (ah *AuthHandler) handleLoginPasswordUsecase(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var req LoginPasswordReq
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Status(http.StatusBadRequest)
 		return
 	}
 
-	res, err := ah.loginPasswordUsecase.Excute(ctx, req.ToLoginPasswordCmd())
+	cmd := usecase.LoginPasswordCmd{
+		Email:    req.Email,
+		Password: req.Password,
+	}
+
+	res, err := ah.loginPasswordUsecase.Excute(ctx, cmd)
 	if err != nil {
 		api.HandleError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
+		"user_id":       res.UserID,
+		"username":      res.Username,
 		"access_token":  res.AccessToken,
 		"refresh_token": res.RefreshToken,
 	})
@@ -93,7 +118,10 @@ func (ah *AuthHandler) handleLoginPasswordUsecase(c *gin.Context) {
 func (ah *AuthHandler) handleChangePasswordUsecase(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var req ChangePasswordReq
+	var req struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Status(http.StatusBadRequest)
 		return
@@ -115,7 +143,7 @@ func (ah *AuthHandler) handleChangePasswordUsecase(c *gin.Context) {
 		api.HandleError(c, err)
 		return
 	}
-	c.Status(http.StatusOK)
+	c.Status(http.StatusNoContent)
 }
 
 func (ah *AuthHandler) handleRefreshTokenUsecase(c *gin.Context) {

@@ -49,7 +49,7 @@ func (ru *RegisterUsecase) Excute(ctx context.Context, cmd RegisterCmd) error {
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(cmd.Password), 10)
 	if err != nil {
-		return err
+		return fmt.Errorf("RegisterUsecase.Excute %w", err)
 	}
 
 	otp := ru.otpProvider.RandOTP()
@@ -65,7 +65,7 @@ func (ru *RegisterUsecase) Excute(ctx context.Context, cmd RegisterCmd) error {
 	key := fmt.Sprintf("auth-register:%s", cmd.Email)
 
 	if err := ru.cacheRepo.SetUserPendingIfNotExists(ctx, key, userPending, time.Minute*5); err != nil {
-		return err
+		return fmt.Errorf("RegisterUsecase.Excute %w", err)
 	}
 
 	go ru.mailSender.SendOTP(ctx, cmd.Email, otp)

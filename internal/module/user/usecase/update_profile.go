@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 
 	"github.com/htan06/echo-messenger-rest-api/internal/errs"
@@ -13,11 +14,10 @@ var (
 )
 
 type UpdateProfileCmd struct {
-	UserID    int64
-	Username  *string
-	Name      *string
-	AvatarURL *string
-	Bio       *string
+	UserID   int64
+	Username *string
+	Name     *string
+	Bio      *string
 }
 
 type UpdateProfileUsecase struct {
@@ -30,13 +30,13 @@ func NewUpdateProfileUsecase(userRepo domain.UserRepository) *UpdateProfileUseca
 	}
 }
 
-func (gpu *UpdateProfileUsecase) Excute(ctx context.Context, cmd UpdateProfileCmd) (domain.UserProfile, error) {
+func (gpu *UpdateProfileUsecase) Excute(ctx context.Context, cmd UpdateProfileCmd) error {
 	fieldsUpdates := map[string]interface{}{}
 
 	if cmd.Username != nil && !usernameRegex.MatchString(*cmd.Username) {
-		return domain.UserProfile{}, errs.NewError(errs.Invalid, nil, errs.UsernameInvalid)
+		return errs.NewError(errs.Invalid, nil, errs.UsernameInvalid)
 	}
-	
+
 	if cmd.Username != nil {
 		fieldsUpdates["username"] = *cmd.Username
 	}
@@ -45,17 +45,12 @@ func (gpu *UpdateProfileUsecase) Excute(ctx context.Context, cmd UpdateProfileCm
 		fieldsUpdates["name"] = *cmd.Name
 	}
 
-	if cmd.AvatarURL != nil {
-		fieldsUpdates["avatar_url"] = *cmd.AvatarURL
-	}
-
 	if cmd.Bio != nil {
 		fieldsUpdates["bio"] = *cmd.Bio
 	}
 
-	up, err := gpu.userRepo.UpdateProfile(ctx, cmd.UserID, fieldsUpdates)
-	if err != nil {
-		return domain.UserProfile{}, err
+	if err := gpu.userRepo.UpdateProfile(ctx, cmd.UserID, fieldsUpdates); err != nil {
+		return fmt.Errorf("UpdateProfileUsecase.Excute: %w", err)
 	}
-	return up, nil
+	return nil
 }

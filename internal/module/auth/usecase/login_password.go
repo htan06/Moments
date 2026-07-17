@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/htan06/echo-messenger-rest-api/internal/errs"
@@ -16,6 +17,8 @@ type LoginPasswordCmd struct {
 }
 
 type LoginPasswordRes struct {
+	UserID       int64
+	Username     string
 	AccessToken  string
 	RefreshToken string
 }
@@ -56,15 +59,17 @@ func (lu *LoginPasswordUsecase) Excute(ctx context.Context, cmd LoginPasswordCmd
 
 	accessToken, err := lu.jwtProvider.GenerateAccessToken(user)
 	if err != nil {
-		return LoginPasswordRes{}, err
+		return LoginPasswordRes{}, fmt.Errorf("LoginPasswordUsecase.Excute %w", err)
 	}
 
 	refreshToken, err := lu.jwtProvider.GenerateRefreshToken(user)
 	if err != nil {
-		return LoginPasswordRes{}, err
+		return LoginPasswordRes{}, fmt.Errorf("LoginPasswordUsecase.Excute %w", err)
 	}
 
 	return LoginPasswordRes{
+		UserID:       user.ID,
+		Username:     user.Username,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
