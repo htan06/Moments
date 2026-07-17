@@ -3,48 +3,61 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
 )
 
+type Content struct {
+	Type domain.NodeType `json:"type"`
+	Text string          `json:"text"`
+}
+
 type CreatePostCmd struct {
-	AuthorID int64
-	Content  []struct {
-		Type domain.NodeType
-		Text string
-	}
+	AuthorID    int64
+	Contents    []Content
+	Visibility  domain.Visibility
 	MediaCounts int
 }
 
+type CreatePostRes struct {
+	PostSessionID string
+	UploadURLs    []string
+}
+
 type CreatePostUC struct {
-	postRepo      domain.PostRepository
+	// postRepo      domain.PostRepository
 	userRepo      domain.UserRepository
 	objectStorage domain.ObjectStorage
+	cacheRepo     domain.CacheRepository
 }
 
 func NewCreatePostUC(
-	postRepo domain.PostRepository,
+	// postRepo domain.PostRepository,
 	userRepo domain.UserRepository,
 	objectStorage domain.ObjectStorage,
+	cacheRepo domain.CacheRepository,
 ) *CreatePostUC {
 	return &CreatePostUC{
-		postRepo:      postRepo,
+		// postRepo:      postRepo,
 		userRepo:      userRepo,
 		objectStorage: objectStorage,
+		cacheRepo:     cacheRepo,
 	}
 }
 
-func (cp *CreatePostUC) Excute(ctx context.Context, cmd CreatePostCmd) ([]string, error) {
-	var post domain.Post
+func (cp *CreatePostUC) Excute(ctx context.Context, cmd CreatePostCmd) (CreatePostRes, error) {
+	postPending := domain.PostPending{}
 
-	post.AuthorID = cmd.AuthorID
+	postPending.AuthorID = cmd.AuthorID
+	postPending.Visibility = cmd.Visibility
 
-	for _, n := range cmd.Content {
+	for _, n := range cmd.Contents {
 		switch n.Type {
 		case domain.Text:
-			post.Content = append(post.Content, domain.Node{
+			postPending.Contents = append(postPending.Contents, domain.Node{
 				Type:  n.Type,
 				Value: n.Text,
 			})
@@ -53,12 +66,12 @@ func (cp *CreatePostUC) Excute(ctx context.Context, cmd CreatePostCmd) ([]string
 		case domain.Mention:
 			userID, err := cp.userRepo.GetIDByUsername(ctx, n.Text[1:])
 			if err != nil {
-				post.Content = append(post.Content, domain.Node{
+				postPending.Contents = append(postPending.Contents, domain.Node{
 					Type:  domain.Text,
 					Value: n.Text,
 				})
 			} else {
-				post.Content = append(post.Content, domain.Node{
+				postPending.Contents = append(postPending.Contents, domain.Node{
 					Type:  domain.Mention,
 					Value: userID,
 				})
@@ -66,32 +79,46 @@ func (cp *CreatePostUC) Excute(ctx context.Context, cmd CreatePostCmd) ([]string
 			break
 
 		case domain.Hashtag:
-			post.Content = append(post.Content, domain.Node{
+			_, val, _ := strings.Cut(n.Text, "#")
+			postPending.Contents = append(postPending.Contents, domain.Node{
 				Type:  domain.Hashtag,
-				Value: n.Text,
+				Value: val,
 			})
 		}
 	}
 
-	var listURLS []string
+	var uploadURLs []string
 
 	for i := 0; i < cmd.MediaCounts; i++ {
 		randID, err := uuid.NewRandom()
 		if err != nil {
-			return nil, fmt.Errorf("CreatePostUC.Excute: %w", err)
+			return CreatePostRes{}, fmt.Errorf("CreatePostUC.Excute: %w", err)
 		}
 
-		mediaID := fmt.Sprintf("/posts/%s", randID.String())
+		mediaID := randID.String()
 
-		presignedUploadURL, err := cp.objectStorage.GetPresignedURLUpload(ctx, "medias", mediaID, time.Minute*5)
+		presignedUploadURL, err := cp.objectStorage.GetPresignedURLUpload(ctx, "tmp", mediaID, time.Minute*5)
 		if err != nil {
-			return nil, fmt.Errorf("CreatePostUC.Excute: %w", err)
+			return CreatePostRes{}, fmt.Errorf("CreatePostUC.Excute: %w", err)
 		}
 
-		listURLS = append(listURLS, presignedUploadURL)
-		post.Medias = append(post.Medias, domain.Media{
-			Type: "",
-		})
+		uploadURLs = append(uploadURLs, presignedUploadURL)
+		postPending.MediaIDs = append(postPending.MediaIDs, mediaID)
 	}
-	return nil, nil
+
+	randID, err := uuid.NewRandom()
+	if err != nil {
+		return CreatePostRes{}, fmt.Errorf("CreatePostUC.Excute: %w", err)
+	}
+
+	sessionID := fmt.Sprintf("%d:%s", cmd.AuthorID, randID.String())
+
+	if err := cp.cacheRepo.SetPostPending(ctx, sessionID, postPending); err != nil {
+		return CreatePostRes{}, fmt.Errorf("CreatePostUC.Excute: %w", err)
+	}
+
+	return CreatePostRes{
+		PostSessionID: sessionID,
+		UploadURLs:    uploadURLs,
+	}, nil
 }

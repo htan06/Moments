@@ -6,7 +6,7 @@ import (
 )
 
 type UserRepository interface {
-	GetIDByUsername(ctx context.Context, username string) (int64, error)
+	GetIDByUsername(ctx context.Context, username string) (*int64, error)
 }
 
 type PostRepository interface {
@@ -15,4 +15,9 @@ type PostRepository interface {
 
 type ObjectStorage interface {
 	GetPresignedURLUpload(ctx context.Context, bucketName string, objName string, ttl time.Duration) (string, error)
+}
+
+type CacheRepository interface {
+	SetPostPending(ctx context.Context, postSessionID string, postPending PostPending) error
+	GetPostPending(ctx context.Context, postSessionID string) (PostPending, error)
 }

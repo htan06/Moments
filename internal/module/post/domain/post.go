@@ -24,8 +24,8 @@ const (
 )
 
 type Node struct {
-	Type  NodeType
-	Value any
+	Type  NodeType `json:"type"`
+	Value any      `json:"value"`
 }
 
 type Media struct {
@@ -50,4 +50,11 @@ type Post struct {
 	CommentCount int
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+}
+
+type PostPending struct {
+	AuthorID   int64      `json:"author_id"`
+	Visibility Visibility `json:"visibility"`
+	Contents   []Node     `json:"contents"`
+	MediaIDs   []string   `json:"media_ids"`
 }

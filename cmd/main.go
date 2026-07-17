@@ -10,6 +10,7 @@ import (
 	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/follow"
+	"github.com/htan06/echo-messenger-rest-api/internal/module/post"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/user"
 	"github.com/htan06/echo-messenger-rest-api/internal/security"
 	"github.com/joho/godotenv"
@@ -62,6 +63,9 @@ func main() {
 
 	followModule := follow.InitFollowModule(postgresConn)
 	followModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
+
+	postModule := post.InitPostModule(postgresConn, redisConn, objectStorageConn)
+	postModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
 
 	router.Run("0.0.0.0:8080")
 }
