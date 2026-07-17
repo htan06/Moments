@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/minio/minio-go/v7"
 )
 
@@ -30,11 +31,11 @@ func (msr *MinIOStorage) PromoteAvatar(ctx context.Context, objName string) erro
 	_, err := msr.conn.CopyObject(
 		ctx,
 		minio.CopyDestOptions{
-			Bucket: "avatars",
+			Bucket: string(config.AvatarBucket),
 			Object: objName,
 		},
 		minio.CopySrcOptions{
-			Bucket: "tmp",
+			Bucket: string(config.TempBucket),
 			Object: objName,
 		},
 	)
@@ -43,16 +44,8 @@ func (msr *MinIOStorage) PromoteAvatar(ctx context.Context, objName string) erro
 		return fmt.Errorf("MinIOStorage.PromoteAvatar: %w", err)
 	}
 
-	if err := msr.conn.RemoveObject(ctx, "tmp", objName, minio.RemoveObjectOptions{}); err != nil {
+	if err := msr.conn.RemoveObject(ctx, string(config.TempBucket), objName, minio.RemoveObjectOptions{}); err != nil {
 		return fmt.Errorf("MinIOStorage.PromoteAvatar: %w", err)
 	}
 	return nil
-}
-
-func (msr *MinIOStorage) CheckObjectExists(ctx context.Context, bucketName string, objectName string) bool {
-	_, err := msr.conn.StatObject(ctx, bucketName, objectName, minio.GetObjectOptions{})
-	if err != nil {
-		return false
-	}
-	return true
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
 )
 
@@ -97,7 +98,7 @@ func (cp *CreatePostUC) Excute(ctx context.Context, cmd CreatePostCmd) (CreatePo
 
 		mediaID := randID.String()
 
-		presignedUploadURL, err := cp.objectStorage.GetPresignedURLUpload(ctx, "tmp", mediaID, time.Minute*5)
+		presignedUploadURL, err := cp.objectStorage.GetPresignedURLUpload(ctx, string(config.TempBucket), mediaID, time.Minute*5)
 		if err != nil {
 			return CreatePostRes{}, fmt.Errorf("CreatePostUC.Excute: %w", err)
 		}

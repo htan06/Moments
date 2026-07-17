@@ -33,7 +33,7 @@ func (gfu *GetFollowingUsecase) Excute(ctx context.Context, qry GetFollowingQry)
 
 	for _, u := range users {
 		if u.AvatarURL != nil {
-			*u.AvatarURL = config.StorageAddress + "/avatars/" + *u.AvatarURL
+			*u.AvatarURL = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarBucket, *u.AvatarURL)
 		}
 	}
 	return users, nil

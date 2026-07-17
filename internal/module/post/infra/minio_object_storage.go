@@ -19,7 +19,7 @@ func NewMinIOStorage(conn *minio.Client) *MinIOStorage {
 }
 
 func (ms *MinIOStorage) GetPresignedURLUpload(ctx context.Context, bucketName string, objName string, ttl time.Duration) (string, error) {
-	url, err := ms.conn.PresignedPutObject(ctx, "tmp", objName, ttl)
+	url, err := ms.conn.PresignedPutObject(ctx, bucketName, objName, ttl)
 	if err != nil {
 		return "", fmt.Errorf("MinIOStorage.GetPresignedURLUpload: %w", err)
 	}

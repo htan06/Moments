@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/errs"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
 	"github.com/htan06/echo-messenger-rest-api/internal/security"
@@ -62,7 +63,7 @@ func (ru *RegisterUsecase) Excute(ctx context.Context, cmd RegisterCmd) error {
 		Username:     cmd.Username,
 	}
 
-	key := fmt.Sprintf("auth-register:%s", cmd.Email)
+	key := fmt.Sprintf("%s:%s", config.UserRegisterPrefix, cmd.Email)
 
 	if err := ru.cacheRepo.SetUserPendingIfNotExists(ctx, key, userPending, time.Minute*5); err != nil {
 		return fmt.Errorf("RegisterUsecase.Excute %w", err)

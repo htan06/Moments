@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/user/domain"
 )
 
@@ -41,12 +42,12 @@ func (cau *ChangeAvatarUsecase) ExcuteGetUrlUpload(ctx context.Context, userID i
 		avatarID = randID.String()
 	}
 
-	presignedUrlUpload, err := cau.objectStorage.GetPresignedUrlUpload(ctx, "tmp", avatarID, time.Minute*10)
+	presignedUrlUpload, err := cau.objectStorage.GetPresignedUrlUpload(ctx, string(config.TempBucket), avatarID, time.Minute*10)
 	if err != nil {
 		return "", fmt.Errorf("ChangeAvatarUsecase.ExcuteGetUrlUpload: %w", err)
 	}
 
-	key := fmt.Sprintf("upload-session:%d", userID)
+	key := fmt.Sprintf("%s:%d", config.UserChangeAvatarPrefix, userID)
 	if err := cau.cacheRepo.SetUploadAvatarSession(ctx, key, avatarID, time.Minute*10); err != nil {
 		return "", fmt.Errorf("ChangeAvatarUsecase.ExcuteGetUrlUpload: %w", err)
 	}
@@ -55,7 +56,7 @@ func (cau *ChangeAvatarUsecase) ExcuteGetUrlUpload(ctx context.Context, userID i
 }
 
 func (cau *ChangeAvatarUsecase) ExcuteCompletedUpload(ctx context.Context, userID int64) error {
-	key := fmt.Sprintf("upload-session:%d", userID)
+	key := fmt.Sprintf("%s:%d", config.UserChangeAvatarPrefix, userID)
 
 	avatarID, err := cau.cacheRepo.GetUploadAvatarSession(ctx, key)
 	if err != nil {

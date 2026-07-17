@@ -26,7 +26,7 @@ func (gpu *GetProfileUsecase) Excute(ctx context.Context, username string) (doma
 	}
 
 	if profile.AvatarURL != nil {
-		*profile.AvatarURL = config.StorageAddress + "/avatars/" + *profile.AvatarURL
+		*profile.AvatarURL = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarBucket, *profile.AvatarURL)
 	}
 	return profile, nil
 }

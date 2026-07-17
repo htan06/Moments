@@ -21,5 +21,4 @@ type CacheReposiotry interface {
 type ObjectStorage interface {
 	GetPresignedUrlUpload(ctx context.Context, bucketName string, objName string, ttl time.Duration) (string, error)
 	PromoteAvatar(ctx context.Context, objName string) error
-	CheckObjectExists(ctx context.Context, bucketName string, objectName string) bool
 }

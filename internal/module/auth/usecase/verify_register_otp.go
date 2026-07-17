@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/errs"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
 	"github.com/htan06/echo-messenger-rest-api/internal/security"
@@ -38,7 +39,7 @@ func NewVerifyRegisterOTPUsecase(
 }
 
 func (vru *VerifyRegisterOTPUsecase) Excute(ctx context.Context, cmd VerifyRegisterOTPCmd) error {
-	key := fmt.Sprintf("auth-register:%s", cmd.Email)
+	key := fmt.Sprintf("%s:%s", config.UserRegisterPrefix, cmd.Email)
 	userPending, err := vru.cacheRepo.GetUserPending(ctx, key)
 	if err != nil {
 		return err

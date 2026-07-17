@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
 	"github.com/redis/go-redis/v9"
 )
@@ -26,7 +27,7 @@ func (rc *RedisCacheRepository) SetPostPending(ctx context.Context, postSessionI
 		return fmt.Errorf("RedisCacheRepository.SetPostPending: %w", err)
 	}
 
-	key := fmt.Sprintf("upload-post-session:%s", postSessionID)
+	key := fmt.Sprintf("%s:%s", config.UserUploadPostPrefix, postSessionID)
 	cmd := rc.conn.Set(ctx, key, data, time.Minute*5)
 	if err := cmd.Err(); err != nil {
 		return fmt.Errorf("RedisCacheRepository.SetPostPending: %w", err)
@@ -35,7 +36,7 @@ func (rc *RedisCacheRepository) SetPostPending(ctx context.Context, postSessionI
 }
 
 func (rc *RedisCacheRepository) GetPostPending(ctx context.Context, postSessionID string) (domain.PostPending, error) {
-	key := fmt.Sprintf("upload-post-session:%s", postSessionID)
+	key := fmt.Sprintf("%s:%s", config.UserUploadPostPrefix, postSessionID)
 	data, err := rc.conn.Get(ctx, key).Bytes()
 	if err != nil {
 		return domain.PostPending{}, fmt.Errorf("RedisCacheRepository.SetPostPending: %w", err)
