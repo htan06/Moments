@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
 	"github.com/redis/go-redis/v9"
 )
@@ -21,31 +20,29 @@ func NewRedisCacheRepository(conn *redis.Client) *RedisCacheRepository {
 	}
 }
 
-func (rc *RedisCacheRepository) SetPostPending(ctx context.Context, postSessionID string, postPending domain.PostPending) error {
-	data, err := json.Marshal(postPending)
+func (rc *RedisCacheRepository) SetUploadPostSession(ctx context.Context, key string, uploadPostSession domain.UploadPostSession) error {
+	data, err := json.Marshal(uploadPostSession)
 	if err != nil {
-		return fmt.Errorf("RedisCacheRepository.SetPostPending: %w", err)
+		return fmt.Errorf("RedisCacheRepository.SetUploadPostSession: %w", err)
 	}
 
-	key := fmt.Sprintf("%s:%s", config.UserUploadPostPrefix, postSessionID)
 	cmd := rc.conn.Set(ctx, key, data, time.Minute*5)
 	if err := cmd.Err(); err != nil {
-		return fmt.Errorf("RedisCacheRepository.SetPostPending: %w", err)
+		return fmt.Errorf("RedisCacheRepository.SetUploadPostSession: %w", err)
 	}
 	return nil
 }
 
-func (rc *RedisCacheRepository) GetPostPending(ctx context.Context, postSessionID string) (domain.PostPending, error) {
-	key := fmt.Sprintf("%s:%s", config.UserUploadPostPrefix, postSessionID)
+func (rc *RedisCacheRepository) GetUploadPostSession(ctx context.Context, key string) (domain.UploadPostSession, error) {
 	data, err := rc.conn.Get(ctx, key).Bytes()
 	if err != nil {
-		return domain.PostPending{}, fmt.Errorf("RedisCacheRepository.SetPostPending: %w", err)
+		return domain.UploadPostSession{}, fmt.Errorf("RedisCacheRepository.GetUploadPostSession: %w", err)
 	}
 
-	var postPending domain.PostPending
-	if err := json.Unmarshal(data, &postPending); err != nil {
-		return domain.PostPending{}, fmt.Errorf("RedisCacheRepository.SetPostPending: %w", err)
+	var uploadPostSession domain.UploadPostSession
+	if err := json.Unmarshal(data, &uploadPostSession); err != nil {
+		return domain.UploadPostSession{}, fmt.Errorf("RedisCacheRepository.GetUploadPostSession: %w", err)
 	}
 
-	return postPending, nil
+	return uploadPostSession, nil
 }

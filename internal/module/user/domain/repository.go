@@ -6,7 +6,7 @@ import (
 )
 
 type UserRepository interface {
-	GetAvatarIDByUserID(ctx context.Context, userID int64) (string, error)
+	GetAvatarIDByUserID(ctx context.Context, userID int64) (*string, error)
 	UpdateProfile(ctx context.Context, userID int64, fieldUpdates map[string]interface{}) error
 	GetProfileByUsername(ctx context.Context, username string) (ProfileQry, error)
 	UpdateAvatarID(ctx context.Context, userID int64, avatarID string) error

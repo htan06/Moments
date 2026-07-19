@@ -3,8 +3,10 @@ package infra
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
+	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/minio/minio-go/v7"
 )
 
@@ -25,4 +27,36 @@ func (ms *MinIOStorage) GetPresignedURLUpload(ctx context.Context, bucketName st
 	}
 
 	return url.String(), nil
+}
+
+func (ms *MinIOStorage) GetObject(ctx context.Context, bucketName string, objName string) (io.Reader, error) {
+	obj, err := ms.conn.GetObject(ctx, bucketName, objName, minio.GetObjectOptions{})
+
+	if err != nil {
+		return nil, fmt.Errorf("MinIOStorage.GetObject: %w", err)
+	}
+
+	return obj, nil
+}
+
+func (ms *MinIOStorage) PromotePostImage(ctx context.Context, objName string) error {
+	_, err := ms.conn.CopyObject(
+		ctx,
+		minio.CopyDestOptions{
+			Bucket: string(config.PostBucket),
+			Object: objName,
+		},
+		minio.CopySrcOptions{
+			Bucket: string(config.TempBucket),
+			Object: objName,
+		})
+
+	if err != nil {
+		return fmt.Errorf("MinIOStorage.PromotePostImage: %w", err)
+	}
+
+	if err := ms.conn.RemoveObject(ctx, string(config.TempBucket), objName, minio.RemoveObjectOptions{}); err != nil {
+		return fmt.Errorf("MinIOStorage.PromotePostImage: %w", err)
+	}
+	return nil
 }

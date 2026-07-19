@@ -29,17 +29,20 @@ func NewChangeAvatarUsecase(
 }
 
 func (cau *ChangeAvatarUsecase) ExcuteGetUrlUpload(ctx context.Context, userID int64) (string, error) {
-	avatarID, err := cau.userRepo.GetAvatarIDByUserID(ctx, userID)
+	var avatarID string
+	avatarIDptr, err := cau.userRepo.GetAvatarIDByUserID(ctx, userID)
 	if err != nil {
 		return "", fmt.Errorf("ChangeAvatarUsecase.ExcuteGetUrlUpload: %w", err)
 	}
 
-	if avatarID == "" {
+	if avatarIDptr == nil {
 		randID, err := uuid.NewRandom()
 		if err != nil {
 			return "", fmt.Errorf("ChangeAvatarUsecase.ExcuteGetUrlUpload: %w", err)
 		}
 		avatarID = randID.String()
+	} else {
+		avatarID = *avatarIDptr
 	}
 
 	presignedUrlUpload, err := cau.objectStorage.GetPresignedUrlUpload(ctx, string(config.TempBucket), avatarID, time.Minute*10)

@@ -22,12 +22,12 @@ func NewPostgresUserRepository(conn *pgxpool.Pool) *PostgresUserRepository {
 	}
 }
 
-func (pur *PostgresUserRepository) GetAvatarIDByUserID(ctx context.Context, userID int64) (string, error) {
+func (pur *PostgresUserRepository) GetAvatarIDByUserID(ctx context.Context, userID int64) (*string, error) {
 	query := `SELECT avatar_id FROM profile.users WHERE id = $1;`
 
-	var id string
+	var id *string
 	if err := pur.conn.QueryRow(ctx, query, userID).Scan(&id); err != nil {
-		return "", fmt.Errorf("PostgresUserRepository.GetAvatarIDByUserID: %w", err)
+		return nil, fmt.Errorf("PostgresUserRepository.GetAvatarIDByUserID: %w", err)
 	}
 	return id, nil
 }

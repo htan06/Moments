@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"io"
 	"time"
 )
 
@@ -10,14 +11,17 @@ type UserRepository interface {
 }
 
 type PostRepository interface {
-	Create(ctx context.Context, post Post) (int64, error)
+	CreatePost(ctx context.Context, post Post) (*int64, error)
+	GetPost(ctx context.Context, postID int64) (PostReadModel, error)
 }
 
 type ObjectStorage interface {
 	GetPresignedURLUpload(ctx context.Context, bucketName string, objName string, ttl time.Duration) (string, error)
+	GetObject(ctx context.Context, bucketName string, objName string) (io.Reader, error)
+	PromotePostImage(ctx context.Context, objName string) error
 }
 
 type CacheRepository interface {
-	SetPostPending(ctx context.Context, postSessionID string, postPending PostPending) error
-	GetPostPending(ctx context.Context, postSessionID string) (PostPending, error)
+	SetUploadPostSession(ctx context.Context, key string, uploadPostSession UploadPostSession) error
+	GetUploadPostSession(ctx context.Context, key string) (UploadPostSession, error)
 }

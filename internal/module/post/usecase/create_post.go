@@ -3,12 +3,22 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"image"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
+
+	_ "image/gif"  // Registers GIF decoder
+	_ "image/jpeg" // Registers JPEG decoder
+	_ "image/png"  // Registers PNG decoder
+
+	// For WebP or BMP, use golang.org/x/image
+	_ "golang.org/x/image/bmp"
+	_ "golang.org/x/image/webp"
 )
 
 type Content struct {
@@ -17,10 +27,21 @@ type Content struct {
 }
 
 type CreatePostCmd struct {
-	AuthorID    int64
-	Contents    []Content
-	Visibility  domain.Visibility
-	MediaCounts int
+	UpLoadSessionID string
+	AuthorID        int64
+	Contents        []Content
+	Visibility      domain.Visibility
+	AspectRatio     domain.AspectRatio
+}
+
+type PrepareUploadPostCmd struct {
+	UserID     int64
+	MediaCount int
+}
+
+type PrepareUploadPostRes struct {
+	SessionID     string
+	PresignedURLs []string
 }
 
 type CreatePostRes struct {
@@ -29,97 +50,145 @@ type CreatePostRes struct {
 }
 
 type CreatePostUC struct {
-	// postRepo      domain.PostRepository
+	postRepo      domain.PostRepository
 	userRepo      domain.UserRepository
 	objectStorage domain.ObjectStorage
 	cacheRepo     domain.CacheRepository
 }
 
 func NewCreatePostUC(
-	// postRepo domain.PostRepository,
+	postRepo domain.PostRepository,
 	userRepo domain.UserRepository,
 	objectStorage domain.ObjectStorage,
 	cacheRepo domain.CacheRepository,
 ) *CreatePostUC {
 	return &CreatePostUC{
-		// postRepo:      postRepo,
+		postRepo:      postRepo,
 		userRepo:      userRepo,
 		objectStorage: objectStorage,
 		cacheRepo:     cacheRepo,
 	}
 }
 
-func (cp *CreatePostUC) Excute(ctx context.Context, cmd CreatePostCmd) (CreatePostRes, error) {
-	postPending := domain.PostPending{}
+func (cp *CreatePostUC) ExecutePrepareUploadPost(ctx context.Context, cmd PrepareUploadPostCmd) (PrepareUploadPostRes, error) {
+	var uploadPostSession domain.UploadPostSession
+	var presignedURLs []string
 
-	postPending.AuthorID = cmd.AuthorID
-	postPending.Visibility = cmd.Visibility
-
-	for _, n := range cmd.Contents {
-		switch n.Type {
-		case domain.Text:
-			postPending.Contents = append(postPending.Contents, domain.Node{
-				Type:  n.Type,
-				Value: n.Text,
-			})
-			break
-
-		case domain.Mention:
-			userID, err := cp.userRepo.GetIDByUsername(ctx, n.Text[1:])
-			if err != nil {
-				postPending.Contents = append(postPending.Contents, domain.Node{
-					Type:  domain.Text,
-					Value: n.Text,
-				})
-			} else {
-				postPending.Contents = append(postPending.Contents, domain.Node{
-					Type:  domain.Mention,
-					Value: userID,
-				})
-			}
-			break
-
-		case domain.Hashtag:
-			_, val, _ := strings.Cut(n.Text, "#")
-			postPending.Contents = append(postPending.Contents, domain.Node{
-				Type:  domain.Hashtag,
-				Value: val,
-			})
-		}
-	}
-
-	var uploadURLs []string
-
-	for i := 0; i < cmd.MediaCounts; i++ {
+	for i := 0; i < cmd.MediaCount; i++ {
 		randID, err := uuid.NewRandom()
 		if err != nil {
-			return CreatePostRes{}, fmt.Errorf("CreatePostUC.Excute: %w", err)
+			return PrepareUploadPostRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 		}
 
 		mediaID := randID.String()
 
 		presignedUploadURL, err := cp.objectStorage.GetPresignedURLUpload(ctx, string(config.TempBucket), mediaID, time.Minute*5)
 		if err != nil {
-			return CreatePostRes{}, fmt.Errorf("CreatePostUC.Excute: %w", err)
+			return PrepareUploadPostRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 		}
 
-		uploadURLs = append(uploadURLs, presignedUploadURL)
-		postPending.MediaIDs = append(postPending.MediaIDs, mediaID)
+		presignedURLs = append(presignedURLs, presignedUploadURL)
+		uploadPostSession.MediaIDs = append(uploadPostSession.MediaIDs, mediaID)
 	}
 
-	randID, err := uuid.NewRandom()
+	sessionID, err := uuid.NewRandom()
 	if err != nil {
-		return CreatePostRes{}, fmt.Errorf("CreatePostUC.Excute: %w", err)
+		return PrepareUploadPostRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 	}
 
-	sessionID := fmt.Sprintf("%d:%s", cmd.AuthorID, randID.String())
-
-	if err := cp.cacheRepo.SetPostPending(ctx, sessionID, postPending); err != nil {
-		return CreatePostRes{}, fmt.Errorf("CreatePostUC.Excute: %w", err)
+	key := fmt.Sprintf("%d:%s", cmd.UserID, sessionID)
+	if err := cp.cacheRepo.SetUploadPostSession(ctx, key, uploadPostSession); err != nil {
+		return PrepareUploadPostRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 	}
 
-	return CreatePostRes{
-		PostSessionID: sessionID,
-		UploadURLs:    uploadURLs,
+	return PrepareUploadPostRes{
+		SessionID:     sessionID.String(),
+		PresignedURLs: presignedURLs,
 	}, nil
+}
+
+func (cp *CreatePostUC) ExecuteCreatePost(ctx context.Context, cmd CreatePostCmd) (*int64, error) {
+	key := fmt.Sprintf("%d:%s", cmd.AuthorID, cmd.UpLoadSessionID)
+
+	uploadPostSession, err := cp.cacheRepo.GetUploadPostSession(ctx, key)
+	if err != nil {
+		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+	}
+
+	post := domain.Post{
+		AuthorID:    cmd.AuthorID,
+		Visibility:  cmd.Visibility,
+		AspectRatio: cmd.AspectRatio,
+		MediaCount:  len(uploadPostSession.MediaIDs),
+	}
+
+	for _, n := range cmd.Contents {
+		switch n.Type {
+		case domain.Text:
+			post.Contents = append(post.Contents, domain.Content{
+				Type:  n.Type,
+				Value: n.Text,
+			})
+
+		case domain.Mention:
+			userID, err := cp.userRepo.GetIDByUsername(ctx, n.Text[1:])
+			if err != nil {
+				post.Contents = append(post.Contents, domain.Content{
+					Type:  domain.Text,
+					Value: n.Text,
+				})
+			} else {
+				uID := *userID
+				post.Mentions = append(post.Mentions, uID)
+				post.Contents = append(post.Contents, domain.Content{
+					Type:  domain.Mention,
+					Value: strconv.Itoa(int(uID)),
+				})
+			}
+
+		case domain.Hashtag:
+			_, val, _ := strings.Cut(n.Text, "#")
+			post.Contents = append(post.Contents, domain.Content{
+				Type:  domain.Hashtag,
+				Value: val,
+			})
+		}
+	}
+
+	for index, mediaID := range uploadPostSession.MediaIDs {
+		src, err := cp.objectStorage.GetObject(ctx, string(config.TempBucket), mediaID)
+
+		if err != nil {
+			return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+		}
+
+		config, _, err := image.DecodeConfig(src)
+		if err != nil {
+			return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+		}
+
+		post.Medias = append(post.Medias,
+			domain.Media{
+				MediaID:      mediaID,
+				Type:         domain.Image,
+				DisplayOrder: index + 1,
+				Width:        config.Width,
+				Height:       config.Height,
+			},
+		)
+
+	}
+
+	postId, err := cp.postRepo.CreatePost(ctx, post)
+	if err != nil {
+		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+	}
+
+	for _, mediaID := range uploadPostSession.MediaIDs {
+		if err := cp.objectStorage.PromotePostImage(ctx, mediaID); err != nil {
+			return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+		}
+	}
+
+	return postId, nil
 }

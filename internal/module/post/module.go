@@ -18,13 +18,14 @@ func InitPostModule(
 	redisConn *redis.Client,
 	storageConn *minio.Client,
 ) *PostModule {
+	postRepo := infra.NewPostgresPostRepository(postgresConn)
 	userRepo := infra.NewPostgresUserRepository(postgresConn)
 	cacheRepo := infra.NewRedisCacheRepository(redisConn)
 	objectStorage := infra.NewMinIOStorage(storageConn)
 
-	createPostUC := usecase.NewCreatePostUC(userRepo, objectStorage, cacheRepo)
-
-	handler := NewPostHandler(*createPostUC)
+	createPostUC := usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo)
+	getPostUC := usecase.NewGetPostUC(postRepo)
+	handler := NewPostHandler(*createPostUC, *getPostUC)
 
 	return &PostModule{
 		postHandler: handler,
@@ -34,5 +35,9 @@ func InitPostModule(
 func (pm *PostModule) RegisterRouter(r *gin.RouterGroup, requireAccessTokenMiddleware gin.HandlerFunc) {
 	me := r.Group("/users/me/posts")
 
-	me.POST("", requireAccessTokenMiddleware, pm.postHandler.handlerCreatePost)
+	me.POST("/prepare-upload", requireAccessTokenMiddleware, pm.postHandler.handlerPrepareUploadPost)
+	me.POST("/", requireAccessTokenMiddleware, pm.postHandler.handlerCreatePost)
+
+	post := r.Group("/posts")
+	post.GET("/:postID", requireAccessTokenMiddleware, pm.postHandler.handlerGetPost)
 }
