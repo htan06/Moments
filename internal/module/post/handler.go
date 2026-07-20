@@ -11,17 +11,20 @@ import (
 )
 
 type PostHandler struct {
-	createPostUC usecase.CreatePostUC
-	getPostUC    usecase.GetPostUC
+	createPostUC   usecase.CreatePostUC
+	getPostUC      usecase.GetPostUC
+	getUserPostsUC usecase.GetUserPostsUC
 }
 
 func NewPostHandler(
 	createPostUC usecase.CreatePostUC,
 	getPostUC usecase.GetPostUC,
+	getUserPostsUC usecase.GetUserPostsUC,
 ) *PostHandler {
 	return &PostHandler{
-		createPostUC: createPostUC,
-		getPostUC:    getPostUC,
+		createPostUC:   createPostUC,
+		getPostUC:      getPostUC,
+		getUserPostsUC: getUserPostsUC,
 	}
 }
 
@@ -114,4 +117,22 @@ func (ph *PostHandler) handlerGetPost(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, post)
+}
+
+func (ph *PostHandler) handlerGetPostsByUsername(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	username := c.Param("username")
+	if username == "" {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	posts, err := ph.getUserPostsUC.Excute(ctx, username)
+	if err != nil {
+		api.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, posts)
 }

@@ -38,7 +38,7 @@ func NewVerifyRegisterOTPUsecase(
 	}
 }
 
-func (vru *VerifyRegisterOTPUsecase) Excute(ctx context.Context, cmd VerifyRegisterOTPCmd) error {
+func (vru *VerifyRegisterOTPUsecase) Execute(ctx context.Context, cmd VerifyRegisterOTPCmd) error {
 	key := fmt.Sprintf("%s:%s", config.UserRegisterPrefix, cmd.Email)
 	userPending, err := vru.cacheRepo.GetUserPending(ctx, key)
 	if err != nil {

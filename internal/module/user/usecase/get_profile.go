@@ -18,11 +18,11 @@ func NewGetProfileUsecase(userRepo domain.UserRepository) *GetProfileUsecase {
 	}
 }
 
-func (gpu *GetProfileUsecase) Excute(ctx context.Context, username string) (domain.ProfileQry, error) {
+func (gpu *GetProfileUsecase) Execute(ctx context.Context, username string) (domain.ProfileQry, error) {
 	profile, err := gpu.userRepo.GetProfileByUsername(ctx, username)
 
 	if err != nil {
-		return domain.ProfileQry{}, fmt.Errorf("ChangeAvatarUsecase.Excute: %w", err)
+		return domain.ProfileQry{}, fmt.Errorf("ChangeAvatarUsecase.Execute: %w", err)
 	}
 
 	if profile.AvatarURL != nil {

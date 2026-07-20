@@ -9,7 +9,7 @@ import (
 )
 
 type GetFollowersQry struct {
-	UserID   int64
+	Username string
 	Page     int32
 	PageSize int32
 }
@@ -24,11 +24,11 @@ func NewGetFollowersUsecase(followRepo domain.FollowRepository) *GetFollowersUse
 	}
 }
 
-func (gfu *GetFollowersUsecase) Excute(ctx context.Context, qry GetFollowersQry) ([]domain.UserSummary, error) {
-	users, err := gfu.followRepo.GetFollowers(ctx, qry.UserID, qry.PageSize, qry.Page)
+func (gfu *GetFollowersUsecase) Execute(ctx context.Context, qry GetFollowersQry) ([]domain.UserSummary, error) {
+	users, err := gfu.followRepo.GetFollowers(ctx, qry.Username, qry.PageSize, qry.Page)
 
 	if err != nil {
-		return nil, fmt.Errorf("GetFollowersUsecase.Excute: %w", err)
+		return nil, fmt.Errorf("GetFollowersUsecase.Execute: %w", err)
 	}
 
 	for _, u := range users {

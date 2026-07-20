@@ -32,7 +32,7 @@ func NewCreateFollowUsecase(followRepo domain.FollowRepository) *CreateFollowUse
 	}
 }
 
-func (fuu *CreateFollowUsecase) Excute(ctx context.Context, cmd CreateFollowCmd) (*int64, error) {
+func (fuu *CreateFollowUsecase) Execute(ctx context.Context, cmd CreateFollowCmd) (*int64, error) {
 	if cmd.FollowerID == cmd.FollowingID {
 		return nil, errs.NewError(errs.Invalid, nil, errs.FollowInvalid)
 	}

@@ -55,6 +55,7 @@ type Post struct {
 	Visibility   Visibility
 	Contents     []Content
 	AspectRatio  AspectRatio
+	ThumbnailID  string
 	Medias       []Media
 	Mentions     []int64
 	LikeCount    int

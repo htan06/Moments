@@ -30,7 +30,7 @@ func NewUpdateProfileUsecase(userRepo domain.UserRepository) *UpdateProfileUseca
 	}
 }
 
-func (gpu *UpdateProfileUsecase) Excute(ctx context.Context, cmd UpdateProfileCmd) error {
+func (gpu *UpdateProfileUsecase) Execute(ctx context.Context, cmd UpdateProfileCmd) error {
 	fieldsUpdates := map[string]interface{}{}
 
 	if cmd.Username != nil && !usernameRegex.MatchString(*cmd.Username) {
@@ -50,7 +50,7 @@ func (gpu *UpdateProfileUsecase) Excute(ctx context.Context, cmd UpdateProfileCm
 	}
 
 	if err := gpu.userRepo.UpdateProfile(ctx, cmd.UserID, fieldsUpdates); err != nil {
-		return fmt.Errorf("UpdateProfileUsecase.Excute: %w", err)
+		return fmt.Errorf("UpdateProfileUsecase.Execute: %w", err)
 	}
 	return nil
 }

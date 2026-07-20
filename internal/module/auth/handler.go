@@ -53,7 +53,7 @@ func (ah *AuthHandler) handleRegisterUsecase(c *gin.Context) {
 		Password: req.Password,
 	}
 
-	if err := ah.registerUsecase.Excute(ctx, cmd); err != nil {
+	if err := ah.registerUsecase.Execute(ctx, cmd); err != nil {
 		api.HandleError(c, err)
 		return
 	}
@@ -76,7 +76,7 @@ func (ah *AuthHandler) handleVerifyRegisterOTPUsecase(c *gin.Context) {
 		Email: req.Email,
 		OTP:   req.OTP,
 	}
-	if err := ah.verifyRegisterOTPUsecase.Excute(ctx, cmd); err != nil {
+	if err := ah.verifyRegisterOTPUsecase.Execute(ctx, cmd); err != nil {
 		api.HandleError(c, err)
 		return
 	}
@@ -101,7 +101,7 @@ func (ah *AuthHandler) handleLoginPasswordUsecase(c *gin.Context) {
 		Password: req.Password,
 	}
 
-	res, err := ah.loginPasswordUsecase.Excute(ctx, cmd)
+	res, err := ah.loginPasswordUsecase.Execute(ctx, cmd)
 	if err != nil {
 		api.HandleError(c, err)
 		return
@@ -139,7 +139,7 @@ func (ah *AuthHandler) handleChangePasswordUsecase(c *gin.Context) {
 		NewPassword:     req.NewPassword,
 	}
 
-	if err := ah.changePasswordUsecase.Excute(ctx, changePasswordCmd); err != nil {
+	if err := ah.changePasswordUsecase.Execute(ctx, changePasswordCmd); err != nil {
 		api.HandleError(c, err)
 		return
 	}
@@ -155,7 +155,7 @@ func (ah *AuthHandler) handleRefreshTokenUsecase(c *gin.Context) {
 		return
 	}
 
-	accessToken, err := ah.refreshTokenUsecase.Excute(ctx, currentUser.ID())
+	accessToken, err := ah.refreshTokenUsecase.Execute(ctx, currentUser.ID())
 	if err != nil {
 		api.HandleError(c, err)
 		return

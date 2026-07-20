@@ -1,13 +1,16 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"image"
+	"io"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
 	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
@@ -155,6 +158,19 @@ func (cp *CreatePostUC) ExecuteCreatePost(ctx context.Context, cmd CreatePostCmd
 		}
 	}
 
+	firstMediaID := uploadPostSession.MediaIDs[0]
+	firstMedia, err := cp.objectStorage.GetObject(ctx, string(config.TempBucket), firstMediaID)
+	if err != nil {
+		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+	}
+
+	thumbnailID, err := cp.createPostThumbnail(ctx, post.AspectRatio, firstMedia)
+	if err != nil {
+		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+	}
+
+	post.ThumbnailID = *thumbnailID
+
 	for index, mediaID := range uploadPostSession.MediaIDs {
 		src, err := cp.objectStorage.GetObject(ctx, string(config.TempBucket), mediaID)
 
@@ -191,4 +207,48 @@ func (cp *CreatePostUC) ExecuteCreatePost(ctx context.Context, cmd CreatePostCmd
 	}
 
 	return postId, nil
+}
+
+func (cp *CreatePostUC) createPostThumbnail(ctx context.Context, postAspectratio domain.AspectRatio, imgSrc io.Reader) (*string, error) {
+	img, err := imaging.Decode(imgSrc)
+	if err != nil {
+		return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
+	}
+
+	var thumbnail bytes.Buffer
+	if postAspectratio != domain.Ratio3_4 {
+		bounds := img.Bounds()
+		imgWidth := bounds.Dx()
+		imgHeight := bounds.Dy()
+
+		var targetWidth, targetHeight int
+
+		if imgWidth*4 > imgHeight*3 {
+			targetHeight = imgHeight
+			targetWidth = (imgHeight * 3) / 4
+		} else {
+			targetWidth = imgWidth
+			targetHeight = (imgWidth * 4) / 3
+		}
+
+		cropImg := imaging.CropCenter(img, targetWidth, targetHeight)
+		if err := imaging.Encode(&thumbnail, cropImg, imaging.JPEG); err != nil {
+			return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
+		}
+	} else {
+		if err := imaging.Encode(&thumbnail, img, imaging.JPEG); err != nil {
+			return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
+		}
+	}
+
+	randID, err := uuid.NewRandom()
+	if err != nil {
+		return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
+	}
+
+	thubmnailID := randID.String()
+	if err := cp.objectStorage.PutObject(ctx, string(config.PostBucket), thubmnailID, bytes.NewReader(thumbnail.Bytes())); err != nil {
+		return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
+	}
+	return &thubmnailID, nil
 }

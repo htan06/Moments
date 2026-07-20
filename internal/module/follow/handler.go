@@ -56,7 +56,7 @@ func (fh *FollowHandler) handlerCreateFollow(c *gin.Context) {
 		FollowingID: req.FollowingID,
 	}
 
-	id, err := fh.createFollowUsecase.Excute(ctx, cmd)
+	id, err := fh.createFollowUsecase.Execute(ctx, cmd)
 	if err != nil {
 		api.HandleError(c, err)
 		return
@@ -70,11 +70,7 @@ func (fh *FollowHandler) handlerCreateFollow(c *gin.Context) {
 func (fh *FollowHandler) handlerGetFollowing(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	userID, err := strconv.ParseInt(c.Param("userID"), 10, 64)
-	if err != nil {
-		c.Status(http.StatusBadRequest)
-		return
-	}
+	username := c.Param("username")
 
 	page, err := strconv.ParseInt(c.Query("page"), 10, 32)
 	if err != nil {
@@ -89,12 +85,12 @@ func (fh *FollowHandler) handlerGetFollowing(c *gin.Context) {
 	}
 
 	qry := usecase.GetFollowingQry{
-		UserID:   userID,
+		Username: username,
 		Page:     int32(page),
 		PageSize: int32(pageSize),
 	}
 
-	users, err := fh.getFollowingUsecase.Excute(ctx, qry)
+	users, err := fh.getFollowingUsecase.Execute(ctx, qry)
 	if err != nil {
 		api.HandleError(c, err)
 		return
@@ -106,11 +102,7 @@ func (fh *FollowHandler) handlerGetFollowing(c *gin.Context) {
 func (fh *FollowHandler) handlerGetFollowers(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	userID, err := strconv.ParseInt(c.Param("userID"), 10, 64)
-	if err != nil {
-		c.Status(http.StatusBadRequest)
-		return
-	}
+	username := c.Param("username")
 
 	page, err := strconv.ParseInt(c.Query("page"), 10, 32)
 	if err != nil {
@@ -125,12 +117,12 @@ func (fh *FollowHandler) handlerGetFollowers(c *gin.Context) {
 	}
 
 	qry := usecase.GetFollowersQry{
-		UserID:   userID,
+		Username: username,
 		Page:     int32(page),
 		PageSize: int32(pageSize),
 	}
 
-	users, err := fh.getFollowersUsecase.Excute(ctx, qry)
+	users, err := fh.getFollowersUsecase.Execute(ctx, qry)
 	if err != nil {
 		api.HandleError(c, err)
 		return
@@ -159,7 +151,7 @@ func (fh *FollowHandler) handlerRemoveFollower(c *gin.Context) {
 		FollowID: followID,
 	}
 
-	if err := fh.removefollowerUsecase.Excute(ctx, cmd); err != nil {
+	if err := fh.removefollowerUsecase.Execute(ctx, cmd); err != nil {
 		api.HandleError(c, err)
 		return
 	}
@@ -186,7 +178,7 @@ func (fh *FollowHandler) handlerUnfollow(c *gin.Context) {
 		FollowID: followID,
 	}
 
-	if err := fh.unfollowUsecase.Excute(ctx, cmd); err != nil {
+	if err := fh.unfollowUsecase.Execute(ctx, cmd); err != nil {
 		api.HandleError(c, err)
 		return
 	}

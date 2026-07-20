@@ -23,7 +23,7 @@ func NewRefreshTokenUsecase(
 	}
 }
 
-func (ru *RefreshTokenUsecase) Excute(ctx context.Context, userID int64) (string, error) {
+func (ru *RefreshTokenUsecase) Execute(ctx context.Context, userID int64) (string, error) {
 	user, err := ru.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return "", fmt.Errorf("RefreshTokenUsecase.Excute %w", err)

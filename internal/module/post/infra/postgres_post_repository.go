@@ -28,8 +28,8 @@ func (pr *PostgresPostRepository) CreatePost(ctx context.Context, post domain.Po
 	}
 	defer tx.Rollback(ctx)
 
-	insertPost := `INSERT INTO content.posts (author_id, content, visibility, media_count, aspect_ratio, like_count, comment_count)
-					VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`
+	insertPost := `INSERT INTO content.posts (author_id, content, visibility, thumbnail_id, media_count, aspect_ratio, like_count, comment_count)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
 
 	postContent, err := json.Marshal(post.Contents)
 	if err != nil {
@@ -40,7 +40,7 @@ func (pr *PostgresPostRepository) CreatePost(ctx context.Context, post domain.Po
 	if err := tx.QueryRow(
 		ctx,
 		insertPost,
-		post.AuthorID, postContent, post.Visibility, post.MediaCount, post.AspectRatio, post.LikeCount, post.CommentCount).
+		post.AuthorID, postContent, post.Visibility, post.ThumbnailID, post.MediaCount, post.AspectRatio, post.LikeCount, post.CommentCount).
 		Scan(&postID); err != nil {
 		return nil, fmt.Errorf("PostgresPostRepository.Create: %w", err)
 	}
@@ -76,6 +76,7 @@ func (pr *PostgresPostRepository) GetPost(ctx context.Context, postID int64) (do
 					p.author_id,
 					p.content,
 					p.visibility,
+					p.thumbnail_id,
 					p.media_count,
 					p.aspect_ratio,
 					p.like_count,
@@ -202,4 +203,27 @@ func (pr *PostgresPostRepository) enrichContent(content []domain.Content, mentio
 		}
 	}
 	return nil
+}
+
+func (pr *PostgresPostRepository) GetPostsByUsername(ctx context.Context, username string) ([]domain.PostSummary, error) {
+	postQuery := `SELECT 
+					id,
+					thumbnail_id,
+					media_count,
+					like_count,
+					comment_count
+				FROM content.posts
+				WHERE p.author_id = (SELECT id FROM profile.users WHERE username = $1);`
+
+	rows, err := pr.conn.Query(ctx, postQuery, username)
+	if err != nil {
+		return []domain.PostSummary{}, fmt.Errorf("GetPostByUsername.Get: %w", err)
+	}
+	defer rows.Close()
+
+	posts, err := pgx.CollectRows[domain.PostSummary](rows, pgx.RowToStructByName)
+	if err != nil {
+		return []domain.PostSummary{}, fmt.Errorf("GetPostByUsername.Get: %w", err)
+	}
+	return posts, nil
 }

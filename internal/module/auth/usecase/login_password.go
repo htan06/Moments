@@ -38,7 +38,7 @@ func NewLoginPasswordUsecase(
 	}
 }
 
-func (lu *LoginPasswordUsecase) Excute(ctx context.Context, cmd LoginPasswordCmd) (LoginPasswordRes, error) {
+func (lu *LoginPasswordUsecase) Execute(ctx context.Context, cmd LoginPasswordCmd) (LoginPasswordRes, error) {
 	user, err := lu.userRepo.GetByEmail(ctx, cmd.Email)
 	if err != nil {
 		return LoginPasswordRes{}, errs.NewError(errs.Invalid, nil, errs.InvalidUsernameOrPassword)

@@ -60,3 +60,11 @@ func (ms *MinIOStorage) PromotePostImage(ctx context.Context, objName string) er
 	}
 	return nil
 }
+
+func (ms *MinIOStorage) PutObject(ctx context.Context, bucketName string, objName string, file io.Reader) error {
+	_, err := ms.conn.PutObject(ctx, bucketName, objName, file, 15, minio.PutObjectOptions{})
+	if err != nil {
+		return fmt.Errorf("MinIOStorage.PutObject: %w", err)
+	}
+	return nil
+}

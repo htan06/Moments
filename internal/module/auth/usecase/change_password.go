@@ -27,7 +27,7 @@ func NewChangePasswordUsecase(
 	}
 }
 
-func (cu *ChangePasswordUsecase) Excute(ctx context.Context, cmd ChangePasswordCmd) error {
+func (cu *ChangePasswordUsecase) Execute(ctx context.Context, cmd ChangePasswordCmd) error {
 	user, err := cu.userRepo.GetByEmail(ctx, cmd.Email)
 	if err != nil {
 		return errs.NewError(errs.Invalid, nil, errs.InvalidUsernameOrPassword)

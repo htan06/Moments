@@ -35,7 +35,7 @@ func (uh *UserHandler) HandlerGetProfile(c *gin.Context) {
 		return
 	}
 
-	profile, err := uh.getProfileUsecase.Excute(ctx, username)
+	profile, err := uh.getProfileUsecase.Execute(ctx, username)
 	if err != nil {
 		api.HandleError(c, err)
 		return
@@ -70,7 +70,7 @@ func (uh *UserHandler) HandlerUpdateProfile(c *gin.Context) {
 		Bio:      req.Bio,
 	}
 
-	if err := uh.updateProfileUsecase.Excute(ctx, cmd); err != nil {
+	if err := uh.updateProfileUsecase.Execute(ctx, cmd); err != nil {
 		api.HandleError(c, err)
 		return
 	}
@@ -87,7 +87,7 @@ func (uh *UserHandler) HandlerGetUrlUploadAvatar(c *gin.Context) {
 		return
 	}
 
-	url, err := uh.changeAvatarUsecase.ExcuteGetUrlUpload(ctx, currentuser.ID())
+	url, err := uh.changeAvatarUsecase.ExecuteGetUrlUpload(ctx, currentuser.ID())
 	if err != nil {
 		api.HandleError(c, err)
 		return
@@ -105,7 +105,7 @@ func (uh *UserHandler) HandlerCompletedUpload(c *gin.Context) {
 		return
 	}
 
-	if err := uh.changeAvatarUsecase.ExcuteCompletedUpload(ctx, currentuser.ID()); err != nil {
+	if err := uh.changeAvatarUsecase.ExecuteCompletedUpload(ctx, currentuser.ID()); err != nil {
 		api.HandleError(c, err)
 		return
 	}

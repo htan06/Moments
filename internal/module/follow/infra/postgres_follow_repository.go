@@ -32,7 +32,12 @@ func (pfr *PostgresFollowRepository) CreateFollow(ctx context.Context, follow do
 	return &id, nil
 }
 
-func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, userID int64, limit int32, offset int32) ([]domain.UserSummary, error) {
+func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, username string, limit int32, offset int32) ([]domain.UserSummary, error) {
+	var userID int64
+	if err := pfr.conn.QueryRow(ctx, "SELECT id FROM profile.users WHERE username = $1;", username).Scan(&userID); err != nil {
+		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
+	}
+
 	query := `SELECT f.id as follow_id, u.id as user_id, u.username, u.name, u.avatar_id, f.created_at
 				FROM social.follows f
 				JOIN profile.users u
@@ -43,7 +48,7 @@ func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, userID in
 
 	rows, err := pfr.conn.Query(ctx, query, userID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
 	}
 
 	users, err := pgx.CollectRows[domain.UserSummary](rows, pgx.RowToStructByName)
@@ -55,7 +60,12 @@ func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, userID in
 	return users, nil
 }
 
-func (pfr *PostgresFollowRepository) GetFollowers(ctx context.Context, userID int64, limit int32, offset int32) ([]domain.UserSummary, error) {
+func (pfr *PostgresFollowRepository) GetFollowers(ctx context.Context, username string, limit int32, offset int32) ([]domain.UserSummary, error) {
+	var userID int64
+	if err := pfr.conn.QueryRow(ctx, "SELECT id FROM profile.users WHERE username = $1;", username).Scan(&userID); err != nil {
+		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
+	}
+
 	query := `SELECT f.id as follow_id, u.id as user_id, u.username, u.name, u.avatar_id, f.created_at
 				FROM social.follows f
 				JOIN profile.users u

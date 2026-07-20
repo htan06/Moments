@@ -22,10 +22,10 @@ func NewRemovefollowerUsecase(followRepo domain.FollowRepository) *Removefollowe
 	}
 }
 
-func (ufu *RemovefollowerUsecase) Excute(ctx context.Context, cmd RemoveFollowCmd) error {
+func (ufu *RemovefollowerUsecase) Execute(ctx context.Context, cmd RemoveFollowCmd) error {
 
 	if err := ufu.followRepo.RemoveByFollowingID(ctx, cmd.FollowID, cmd.UserID); err != nil {
-		return fmt.Errorf("RemovefollowerUsecase.Excute: %w", err)
+		return fmt.Errorf("RemovefollowerUsecase.Execute: %w", err)
 	}
 	return nil
 }

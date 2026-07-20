@@ -43,7 +43,7 @@ func NewRegisterUsecase(
 	}
 }
 
-func (ru *RegisterUsecase) Excute(ctx context.Context, cmd RegisterCmd) error {
+func (ru *RegisterUsecase) Execute(ctx context.Context, cmd RegisterCmd) error {
 	if !usernameRegex.MatchString(cmd.Username) {
 		return errs.NewError(errs.Invalid, nil, errs.UsernameInvalid)
 	}

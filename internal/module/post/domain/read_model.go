@@ -22,6 +22,7 @@ type PostReadModel struct {
 	AuthorAvatarThumbnailID *string          `json:"author_avatar_thumbnail_url" db:"author_avatar_thumbnail_id"`
 	Content                 []Content        `json:"content" db:"content"`
 	Visibility              Visibility       `json:"visibility" db:"visibility"`
+	ThumbnailID             string           `json:"thumbnail_url" db:"thumbnail_id"`
 	MediaCount              int              `json:"media_count" db:"media_count"`
 	Medias                  []MediaReadModel `json:"medias" db:"-"`
 	AspectRatio             AspectRatio      `json:"aspect_ratio" db:"aspect_ratio"`
@@ -29,4 +30,12 @@ type PostReadModel struct {
 	CommentCount            int              `json:"comment_count" db:"comment_count"`
 	CreatedAt               time.Time        `json:"created_at" db:"created_at"`
 	UpdatedAt               time.Time        `json:"updated_at" db:"updated_at"`
+}
+
+type PostSummary struct {
+	ID           int64  `json:"id" db:"id"`
+	ThumbnailID  string `json:"thumbnail_url" db:"thumbnail_id"`
+	MediaCount   int    `json:"media_count" db:"media_count"`
+	LikeCount    int    `json:"like_count" db:"like_count"`
+	CommentCount int    `json:"comment_count" db:"comment_count"`
 }

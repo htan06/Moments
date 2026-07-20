@@ -26,6 +26,8 @@ func (gp *GetPostUC) Excute(ctx context.Context, postID int64) (domain.PostReadM
 		return domain.PostReadModel{}, fmt.Errorf("GetPostUC.Excute: %w", err)
 	}
 
+	post.ThumbnailID = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.PostBucket, post.ThumbnailID)
+
 	if post.AuthorAvatarThumbnailID != nil {
 		*post.AuthorAvatarThumbnailID = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarBucket, *post.AuthorAvatarThumbnailID)
 	}

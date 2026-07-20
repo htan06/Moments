@@ -30,7 +30,7 @@ func InitFollowModule(
 }
 
 func (fm *followModule) RegisterRouter(r *gin.RouterGroup, requireAccessTokenMiddleware gin.HandlerFunc) {
-	users := r.Group("/users/:userID")
+	users := r.Group("/users/:username/")
 	users.GET("/following", requireAccessTokenMiddleware, fm.followHandler.handlerGetFollowing)
 	users.GET("/followers", requireAccessTokenMiddleware, fm.followHandler.handlerGetFollowers)
 

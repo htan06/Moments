@@ -25,7 +25,9 @@ func InitPostModule(
 
 	createPostUC := usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo)
 	getPostUC := usecase.NewGetPostUC(postRepo)
-	handler := NewPostHandler(*createPostUC, *getPostUC)
+	getUserPostsUC := usecase.NewGetUserPostsUC(postRepo)
+
+	handler := NewPostHandler(*createPostUC, *getPostUC, *getUserPostsUC)
 
 	return &PostModule{
 		postHandler: handler,
@@ -40,4 +42,7 @@ func (pm *PostModule) RegisterRouter(r *gin.RouterGroup, requireAccessTokenMiddl
 
 	post := r.Group("/posts")
 	post.GET("/:postID", requireAccessTokenMiddleware, pm.postHandler.handlerGetPost)
+
+	user := r.Group("/users/:username/posts")
+	user.GET("", requireAccessTokenMiddleware, pm.postHandler.handlerGetPostsByUsername)
 }
