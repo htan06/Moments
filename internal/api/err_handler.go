@@ -21,12 +21,12 @@ func HandleError(c *gin.Context, err error) {
 	if e, ok := errors.AsType[*errs.Error](err); ok {
 		if httpCode, ok := errorTypeTable[e.Type]; ok {
 			c.JSON(httpCode, gin.H{
-				"error_codes": e.Codes,
+				"error_code": e.Code,
 			})
 			return
 		}
 	}
 
 	fmt.Println("ERROR: ", err.Error())
-	c.Status(http.StatusInternalServerError)
+	c.AbortWithStatus(http.StatusInternalServerError)
 }

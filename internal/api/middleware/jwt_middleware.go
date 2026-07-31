@@ -24,7 +24,7 @@ func (jwtm *JWTMiddleWare) RequireAccessToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authorization := c.GetHeader("Authorization")
 		parts := strings.Split(authorization, " ")
-		if parts[0] != "Bearer" {
+		if parts[0] != "Bearer" || len(parts) < 2 {
 			return
 		}
 
@@ -48,7 +48,7 @@ func (jwtm *JWTMiddleWare) RequireRefreshToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authorization := c.GetHeader("Authorization")
 		parts := strings.Split(authorization, " ")
-		if parts[0] != "Bearer" {
+		if parts[0] != "Bearer" || len(parts) < 2 {
 			return
 		}
 

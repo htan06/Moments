@@ -1,6 +1,8 @@
 package domain
 
-import "time"
+import (
+	"time"
+)
 
 type NodeType string
 type MediaType string
@@ -63,16 +65,6 @@ type Post struct {
 	CommentCount int
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
-}
-
-type PostPending struct {
-	AuthorID    int64       `json:"author_id"`
-	Visibility  Visibility  `json:"visibility"`
-	Contents    []Content   `json:"contents"`
-	AspectRatio AspectRatio `json:"aspect_ratio"`
-	MediaIDs    []string    `json:"media_ids"`
-	MediaCount  int         `json:"media_count"`
-	Mentions    []int64     `json:"mentions"`
 }
 
 type UploadPostSession struct {

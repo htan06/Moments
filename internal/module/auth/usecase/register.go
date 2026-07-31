@@ -45,7 +45,7 @@ func NewRegisterUsecase(
 
 func (ru *RegisterUsecase) Execute(ctx context.Context, cmd RegisterCmd) error {
 	if !usernameRegex.MatchString(cmd.Username) {
-		return errs.NewError(errs.Invalid, nil, errs.UsernameInvalid)
+		return errs.NewError(errs.Invalid, nil, domain.UsernameInvalid)
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(cmd.Password), 10)

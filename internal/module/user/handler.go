@@ -35,7 +35,18 @@ func (uh *UserHandler) HandlerGetProfile(c *gin.Context) {
 		return
 	}
 
-	profile, err := uh.getProfileUsecase.Execute(ctx, username)
+	currentuser, exists := api.GetCurrentUser(c)
+	if !exists {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	qry := usecase.GetProfileQry{
+		CurrentUserID:   currentuser.ID(),
+		CurrentUsername: currentuser.Username(),
+		TargetUsername:  username,
+	}
+	profile, err := uh.getProfileUsecase.Execute(ctx, qry)
 	if err != nil {
 		api.HandleError(c, err)
 		return
@@ -70,12 +81,13 @@ func (uh *UserHandler) HandlerUpdateProfile(c *gin.Context) {
 		Bio:      req.Bio,
 	}
 
-	if err := uh.updateProfileUsecase.Execute(ctx, cmd); err != nil {
+	res, err := uh.updateProfileUsecase.Execute(ctx, cmd)
+	if err != nil {
 		api.HandleError(c, err)
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, res)
 }
 
 func (uh *UserHandler) HandlerGetUrlUploadAvatar(c *gin.Context) {
@@ -105,10 +117,11 @@ func (uh *UserHandler) HandlerCompletedUpload(c *gin.Context) {
 		return
 	}
 
-	if err := uh.changeAvatarUsecase.ExecuteCompletedUpload(ctx, currentuser.ID()); err != nil {
+	avatarURL, err := uh.changeAvatarUsecase.ExecuteCompletedUpload(ctx, currentuser.ID())
+	if err != nil {
 		api.HandleError(c, err)
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, gin.H{"avatar_url": avatarURL})
 }

@@ -46,17 +46,22 @@ func (vru *VerifyRegisterOTPUsecase) Execute(ctx context.Context, cmd VerifyRegi
 	}
 
 	if userPending.OTP != cmd.OTP {
-		return errs.NewError(errs.Invalid, nil, errs.IncorrectOTP)
+		return errs.NewError(errs.Invalid, nil, domain.OTPIncorrect)
 	}
 
-	user := domain.User{
-		Name:         userPending.Name,
-		Email:        userPending.Email,
-		Username:     userPending.Username,
-		PasswordHash: userPending.PasswordHash,
+	user, err := domain.NewUser(
+		userPending.Username,
+		userPending.Name,
+		userPending.Email,
+		nil,
+		userPending.PasswordHash,
+	)
+
+	if err != nil {
+		return err
 	}
 
-	if err := vru.userRepo.Create(ctx, user); err != nil {
+	if err := vru.userRepo.Create(ctx, *user); err != nil {
 		return err
 	}
 

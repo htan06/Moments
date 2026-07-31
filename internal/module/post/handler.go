@@ -14,17 +14,20 @@ type PostHandler struct {
 	createPostUC   usecase.CreatePostUC
 	getPostUC      usecase.GetPostUC
 	getUserPostsUC usecase.GetUserPostsUC
+	deletePostUC   usecase.DeletePostUC
 }
 
 func NewPostHandler(
 	createPostUC usecase.CreatePostUC,
 	getPostUC usecase.GetPostUC,
 	getUserPostsUC usecase.GetUserPostsUC,
+	deletePostUC usecase.DeletePostUC,
 ) *PostHandler {
 	return &PostHandler{
 		createPostUC:   createPostUC,
 		getPostUC:      getPostUC,
 		getUserPostsUC: getUserPostsUC,
+		deletePostUC:   deletePostUC,
 	}
 }
 
@@ -117,6 +120,34 @@ func (ph *PostHandler) handlerGetPost(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, post)
+}
+
+func (ph *PostHandler) handlerDeletePost(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	postID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	currentUser, exists := api.GetCurrentUser(c)
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	cmd := usecase.DeletePostCmd{
+		UserID: currentUser.ID(),
+		PostID: postID,
+	}
+
+	if err := ph.deletePostUC.Execute(ctx, cmd); err != nil {
+		api.HandleError(c, err)
+		return
+	}
+
+	c.AbortWithStatus(http.StatusNoContent)
 }
 
 func (ph *PostHandler) handlerGetPostsByUsername(c *gin.Context) {

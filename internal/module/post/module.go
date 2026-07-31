@@ -26,8 +26,9 @@ func InitPostModule(
 	createPostUC := usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo)
 	getPostUC := usecase.NewGetPostUC(postRepo)
 	getUserPostsUC := usecase.NewGetUserPostsUC(postRepo)
+	deletePostUC := usecase.NewDeletePostUC(postRepo)
 
-	handler := NewPostHandler(*createPostUC, *getPostUC, *getUserPostsUC)
+	handler := NewPostHandler(*createPostUC, *getPostUC, *getUserPostsUC, *deletePostUC)
 
 	return &PostModule{
 		postHandler: handler,
@@ -39,6 +40,7 @@ func (pm *PostModule) RegisterRouter(r *gin.RouterGroup, requireAccessTokenMiddl
 
 	me.POST("/prepare-upload", requireAccessTokenMiddleware, pm.postHandler.handlerPrepareUploadPost)
 	me.POST("/", requireAccessTokenMiddleware, pm.postHandler.handlerCreatePost)
+	me.DELETE("/:id", requireAccessTokenMiddleware, pm.postHandler.handlerDeletePost)
 
 	post := r.Group("/posts")
 	post.GET("/:postID", requireAccessTokenMiddleware, pm.postHandler.handlerGetPost)

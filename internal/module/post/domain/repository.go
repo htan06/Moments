@@ -14,6 +14,7 @@ type PostRepository interface {
 	CreatePost(ctx context.Context, post Post) (*int64, error)
 	GetPost(ctx context.Context, postID int64) (PostReadModel, error)
 	GetPostsByUsername(ctx context.Context, username string) ([]PostSummary, error)
+	DeletePostByUserIDAndPostID(ctx context.Context, userID int64, postID int64) error
 }
 
 type ObjectStorage interface {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -17,9 +16,6 @@ import (
 )
 
 func main() {
-	wd, _ := os.Getwd()
-	fmt.Println("cwd:", wd)
-
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("WAR: Cannot load .env file")

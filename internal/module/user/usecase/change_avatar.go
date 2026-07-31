@@ -58,24 +58,26 @@ func (cau *ChangeAvatarUsecase) ExecuteGetUrlUpload(ctx context.Context, userID 
 	return presignedUrlUpload, nil
 }
 
-func (cau *ChangeAvatarUsecase) ExecuteCompletedUpload(ctx context.Context, userID int64) error {
+func (cau *ChangeAvatarUsecase) ExecuteCompletedUpload(ctx context.Context, userID int64) (string, error) {
 	key := fmt.Sprintf("%s:%d", config.UserChangeAvatarPrefix, userID)
 
 	avatarID, err := cau.cacheRepo.GetUploadAvatarSession(ctx, key)
 	if err != nil {
-		return fmt.Errorf("ChangeAvatarUsecase.ExecuteCompletedUpload: %w", err)
+		return "", fmt.Errorf("ChangeAvatarUsecase.ExecuteCompletedUpload: %w", err)
 	}
 
 	if err := cau.objectStorage.PromoteAvatar(ctx, avatarID); err != nil {
-		return fmt.Errorf("ChangeAvatarUsecase.ExecuteCompletedUpload: %w", err)
+		return "", fmt.Errorf("ChangeAvatarUsecase.ExecuteCompletedUpload: %w", err)
 	}
 
 	if err := cau.userRepo.UpdateAvatarID(ctx, userID, avatarID); err != nil {
-		return fmt.Errorf("ChangeAvatarUsecase.ExecuteCompletedUpload: %w", err)
+		return "", fmt.Errorf("ChangeAvatarUsecase.ExecuteCompletedUpload: %w", err)
 	}
 
 	if err := cau.cacheRepo.RemoveSession(ctx, key); err != nil {
-		return fmt.Errorf("ChangeAvatarUsecase.ExecuteCompletedUpload: %w", err)
+		return "", fmt.Errorf("ChangeAvatarUsecase.ExecuteCompletedUpload: %w", err)
 	}
-	return nil
+
+	avatarURL := fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarBucket, avatarID)
+	return avatarURL, nil
 }

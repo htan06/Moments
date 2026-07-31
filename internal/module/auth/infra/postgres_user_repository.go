@@ -33,7 +33,7 @@ func (pur *PostgresUserRepository) GetByEmail(ctx context.Context, email string)
 		Scan(&user.ID, &user.Name, &user.Username, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.Status); err != nil {
 
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.User{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
+			return domain.User{}, errs.NewError(errs.NotFound, err, domain.UserNotFound)
 		}
 		return domain.User{}, fmt.Errorf("PostgresUserRepository.GetByEmail.: %w", err)
 	}
@@ -52,7 +52,7 @@ func (pur *PostgresUserRepository) GetByID(ctx context.Context, id int64) (domai
 		Scan(&user.ID, &user.Name, &user.Username, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.Status); err != nil {
 
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.User{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
+			return domain.User{}, errs.NewError(errs.NotFound, err, domain.UserNotFound)
 		}
 		return domain.User{}, fmt.Errorf("PostgresUserRepository.GetByID: %w", err)
 	}
@@ -75,7 +75,7 @@ func (pur *PostgresUserRepository) Create(ctx context.Context, user domain.User)
 		if pgerr, ok := errors.AsType[*pgconn.PgError](err); ok && pgerr.Code == "23505" {
 			switch pgerr.ConstraintName {
 			case "users_username_key":
-				return errs.NewError(errs.Conflict, err, errs.UsernameAlreadyUsed)
+				return errs.NewError(errs.Conflict, err, domain.UsernameAlreadyUsed)
 			}
 		}
 		return fmt.Errorf("PostgresUserRepository.Create: %w", err)

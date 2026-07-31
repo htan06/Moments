@@ -49,23 +49,73 @@ func (pur *PostgresUserRepository) UpdateProfile(ctx context.Context, userID int
 	return nil
 }
 
-func (pur *PostgresUserRepository) GetProfileByUsername(ctx context.Context, username string) (domain.ProfileQry, error) {
-	query := `SELECT id, username, name, avatar_id, bio, followers_count, following_count, posts_count
+func (pur *PostgresUserRepository) GetSelfProfileByUsername(ctx context.Context, username string) (domain.ProfileReadModel, error) {
+	query := `SELECT
+					id AS user_id,
+					username,
+					name,
+					avatar_id,
+					bio,
+
+					followers_count,
+					following_count,
+					posts_count,
+					NULL as relationship
+
 				FROM profile.users
 				WHERE username = $1;`
 
 	row, err := pur.conn.Query(ctx, query, username)
 	if err != nil {
-		return domain.ProfileQry{}, fmt.Errorf("PostgresUserRepository.GetProfileByUsername: %w", err)
+		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository.GetProfileByUsername: %w", err)
 	}
 
-	profile, err := pgx.CollectOneRow[domain.ProfileQry](row, pgx.RowToStructByName)
-
+	profile, err := pgx.CollectOneRow[domain.ProfileReadModel](row, pgx.RowToStructByName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.ProfileQry{}, errs.NewError(errs.NotFound, err, errs.UserNotFound)
+			return domain.ProfileReadModel{}, errs.NewError(errs.NotFound, err, domain.UserNotFound)
 		}
-		return domain.ProfileQry{}, fmt.Errorf("PostgresUserRepository[FindByUsername]: %w", err)
+		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository[FindByUsername]: %w", err)
+	}
+
+	return profile, nil
+}
+
+func (pur *PostgresUserRepository) GetOtherProfileByUsername(ctx context.Context, currentUserID int64, targetUsername string) (domain.ProfileReadModel, error) {
+	query := `SELECT
+					u.id AS user_id,
+					u.username,
+					u.name,
+					u.avatar_id,
+					u.bio,
+
+					u.followers_count,
+					u.following_count,
+					u.posts_count,
+					CASE
+						WHEN EXISTS (
+								SELECT 1 
+								FROM social.follows f
+								WHERE f.follower_id = $1 AND f.following_id = u.id)
+						THEN 'FOLLOWING'
+						ELSE 'NONE'
+					END
+					as relationship
+
+				FROM profile.users u
+				WHERE username = $2;`
+
+	row, err := pur.conn.Query(ctx, query, currentUserID, targetUsername)
+	if err != nil {
+		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository.GetProfileByUsername: %w", err)
+	}
+
+	profile, err := pgx.CollectOneRow[domain.ProfileReadModel](row, pgx.RowToStructByName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ProfileReadModel{}, errs.NewError(errs.NotFound, err, domain.UserNotFound)
+		}
+		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository[FindByUsername]: %w", err)
 	}
 
 	return profile, nil

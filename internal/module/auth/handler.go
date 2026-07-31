@@ -57,7 +57,7 @@ func (ah *AuthHandler) handleRegisterUsecase(c *gin.Context) {
 		api.HandleError(c, err)
 		return
 	}
-	c.Status(http.StatusOK)
+	c.Status(http.StatusNoContent)
 }
 
 func (ah *AuthHandler) handleVerifyRegisterOTPUsecase(c *gin.Context) {

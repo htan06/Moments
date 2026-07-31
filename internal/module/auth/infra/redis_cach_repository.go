@@ -25,7 +25,7 @@ func (rcr *RedisCacheRepository) GetUserPending(ctx context.Context, key string)
 	data, err := rcr.redisConn.Get(ctx, key).Result()
 
 	if err == redis.Nil {
-		return domain.UserPending{}, errs.NewError(errs.NotFound, nil)
+		return domain.UserPending{}, errs.NewError(errs.NotFound, nil, domain.UserNotFound)
 	}
 
 	var val domain.UserPending

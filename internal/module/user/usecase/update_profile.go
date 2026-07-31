@@ -20,6 +20,12 @@ type UpdateProfileCmd struct {
 	Bio      *string
 }
 
+type UpdateProfileRes struct {
+	Username *string `json:"username,omitempty"`
+	Name     *string `json:"name,omitempty"`
+	Bio      *string `json:"bio,omitempty"`
+}
+
 type UpdateProfileUsecase struct {
 	userRepo domain.UserRepository
 }
@@ -30,27 +36,31 @@ func NewUpdateProfileUsecase(userRepo domain.UserRepository) *UpdateProfileUseca
 	}
 }
 
-func (gpu *UpdateProfileUsecase) Execute(ctx context.Context, cmd UpdateProfileCmd) error {
+func (gpu *UpdateProfileUsecase) Execute(ctx context.Context, cmd UpdateProfileCmd) (UpdateProfileRes, error) {
 	fieldsUpdates := map[string]interface{}{}
+	res := UpdateProfileRes{}
 
 	if cmd.Username != nil && !usernameRegex.MatchString(*cmd.Username) {
-		return errs.NewError(errs.Invalid, nil, errs.UsernameInvalid)
+		return UpdateProfileRes{}, errs.NewError(errs.Invalid, nil, domain.UsernameInvalid)
 	}
 
 	if cmd.Username != nil {
 		fieldsUpdates["username"] = *cmd.Username
+		res.Username = cmd.Username
 	}
 
 	if cmd.Name != nil {
 		fieldsUpdates["name"] = *cmd.Name
+		res.Name = cmd.Name
 	}
 
 	if cmd.Bio != nil {
 		fieldsUpdates["bio"] = *cmd.Bio
+		res.Bio = cmd.Bio
 	}
 
 	if err := gpu.userRepo.UpdateProfile(ctx, cmd.UserID, fieldsUpdates); err != nil {
-		return fmt.Errorf("UpdateProfileUsecase.Execute: %w", err)
+		return UpdateProfileRes{}, fmt.Errorf("UpdateProfileUsecase.Execute: %w", err)
 	}
-	return nil
+	return res, nil
 }

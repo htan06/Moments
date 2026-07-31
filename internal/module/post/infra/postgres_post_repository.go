@@ -205,6 +205,16 @@ func (pr *PostgresPostRepository) enrichContent(content []domain.Content, mentio
 	return nil
 }
 
+func (pr *PostgresPostRepository) DeletePostByUserIDAndPostID(ctx context.Context, userID int64, postID int64) error {
+	query := `DELETE FROM content.posts WHERE id = $1 AND author_id = $2;`
+
+	_, err := pr.conn.Exec(ctx, query, postID, userID)
+	if err != nil {
+		return fmt.Errorf("PostgresPostRepository.DeletePostByUserIDAndPostID: %w", err)
+	}
+	return nil
+}
+
 func (pr *PostgresPostRepository) GetPostsByUsername(ctx context.Context, username string) ([]domain.PostSummary, error) {
 	postQuery := `SELECT 
 					id,
@@ -213,7 +223,7 @@ func (pr *PostgresPostRepository) GetPostsByUsername(ctx context.Context, userna
 					like_count,
 					comment_count
 				FROM content.posts
-				WHERE p.author_id = (SELECT id FROM profile.users WHERE username = $1);`
+				WHERE author_id = (SELECT id FROM profile.users WHERE username = $1);`
 
 	rows, err := pr.conn.Query(ctx, postQuery, username)
 	if err != nil {

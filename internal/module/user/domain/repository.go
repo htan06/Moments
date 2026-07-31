@@ -8,7 +8,8 @@ import (
 type UserRepository interface {
 	GetAvatarIDByUserID(ctx context.Context, userID int64) (*string, error)
 	UpdateProfile(ctx context.Context, userID int64, fieldUpdates map[string]interface{}) error
-	GetProfileByUsername(ctx context.Context, username string) (ProfileQry, error)
+	GetSelfProfileByUsername(ctx context.Context, username string) (ProfileReadModel, error)
+	GetOtherProfileByUsername(ctx context.Context, currentUserID int64, targetUsername string) (ProfileReadModel, error)
 	UpdateAvatarID(ctx context.Context, userID int64, avatarID string) error
 }
 

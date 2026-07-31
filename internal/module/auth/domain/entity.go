@@ -1,0 +1,88 @@
+package domain
+
+import (
+	"regexp"
+	"time"
+
+	"github.com/htan06/echo-messenger-rest-api/internal/errs"
+)
+
+type UserStatus string
+
+var (
+	usernameRegex    = regexp.MustCompile(`^[a-zA-Z0-9_]{3,30}$`)
+	emailRegex       = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	phoneNumberRegex = regexp.MustCompile(`^(?:([+]\d{1,4})[-.\s]?)?(?:[(](\d{1,3})[)][-.\s]?)?(\d{1,4})[-.\s]?(\d{1,4})[-.\s]?(\d{1,9})$`)
+)
+
+const (
+	UserActive    UserStatus = "ACTIVE"
+	UserNonActive UserStatus = "NON_ACTIVE"
+)
+
+type User struct {
+	ID           int64
+	Username     string
+	Name         string
+	Email        string
+	PhoneNumber  *string
+	PasswordHash string
+	LastLoginAt  time.Time
+	Status       UserStatus
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+func NewUser(
+	username string,
+	name string,
+	email string,
+	phoneNumber *string,
+	passwordHash string,
+) (*User, error) {
+
+	if !usernameRegex.MatchString(username) {
+		return nil, errs.NewError(errs.Invalid, nil, UsernameInvalid)
+	}
+
+	if len(name) == 0 || len(name) > 100 {
+		return nil, errs.NewError(errs.Invalid, nil, NameInvalid)
+	}
+
+	if !emailRegex.MatchString(email) {
+		return nil, errs.NewError(errs.Invalid, nil, EmailInvalid)
+	}
+
+	if phoneNumber != nil && *phoneNumber != "" {
+		if !phoneNumberRegex.MatchString(*phoneNumber) {
+			return nil, errs.NewError(errs.Invalid, nil, PhoneNumberInvalid)
+		}
+	} else {
+		phoneNumber = nil
+	}
+
+	if passwordHash == "" {
+		return nil, errs.NewError(errs.Invalid, nil, PasswordHashEmpty)
+	}
+
+	now := time.Now().UTC()
+
+	return &User{
+		Username:     username,
+		Name:         name,
+		Email:        email,
+		PhoneNumber:  phoneNumber,
+		PasswordHash: passwordHash,
+		Status:       UserActive,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}, nil
+}
+
+type UserPending struct {
+	OTP          string `json:"otp"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	Name         string `json:"name"`
+	Username     string `json:"username"`
+}

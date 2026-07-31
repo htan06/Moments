@@ -41,20 +41,20 @@ func NewLoginPasswordUsecase(
 func (lu *LoginPasswordUsecase) Execute(ctx context.Context, cmd LoginPasswordCmd) (LoginPasswordRes, error) {
 	user, err := lu.userRepo.GetByEmail(ctx, cmd.Email)
 	if err != nil {
-		return LoginPasswordRes{}, errs.NewError(errs.Invalid, nil, errs.InvalidUsernameOrPassword)
+		return LoginPasswordRes{}, errs.NewError(errs.Invalid, nil, domain.UsernameOrPasswordInvalid)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(cmd.Password)); err != nil {
-		return LoginPasswordRes{}, errs.NewError(errs.Invalid, nil, errs.InvalidUsernameOrPassword)
+		return LoginPasswordRes{}, errs.NewError(errs.Invalid, nil, domain.UsernameOrPasswordInvalid)
 	}
 
 	if user.Status != domain.UserActive {
-		return LoginPasswordRes{}, errs.NewError(errs.AuthenticationFailure, nil, errs.UserNonActive)
+		return LoginPasswordRes{}, errs.NewError(errs.AuthenticationFailure, nil, domain.UserNonActiveErr)
 	}
 
-	user.LastLoginAt = time.Now()
+	user.LastLoginAt = time.Now().UTC()
 	if err := lu.userRepo.UpdateLastLogin(ctx, user); err != nil {
-		return LoginPasswordRes{}, errs.NewError(errs.Invalid, nil, errs.InvalidUsernameOrPassword)
+		return LoginPasswordRes{}, errs.NewError(errs.Invalid, nil, domain.UsernameOrPasswordInvalid)
 	}
 
 	accessToken, err := lu.jwtProvider.GenerateAccessToken(user)

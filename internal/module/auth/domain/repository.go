@@ -9,9 +9,7 @@ import (
 type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (User, error)
 	GetByID(ctx context.Context, id int64) (User, error)
-	
 	Create(ctx context.Context, user User) error
-
 	UpdateLastLogin(ctx context.Context, user User) error
 	UpdatePassword(ctx context.Context, user User) error
 }

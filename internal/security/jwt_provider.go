@@ -7,6 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/errs"
+	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
 	model "github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
 )
 
@@ -65,7 +66,7 @@ func (jp *JWTProvier) ParseAccessToken(tokenString string) (UserClaimsAccess, er
 	}
 
 	if !token.Valid {
-		return UserClaimsAccess{}, errs.NewError(errs.AuthenticationFailure, nil, errs.TokenInvalid)
+		return UserClaimsAccess{}, errs.NewError(errs.AuthenticationFailure, nil, domain.TokenInvalid)
 	}
 	return claim, nil
 }
@@ -101,7 +102,7 @@ func (jp *JWTProvier) ParseRefreshToken(tokenString string) (UserClaimsRefresh, 
 	}
 
 	if !token.Valid {
-		return UserClaimsRefresh{}, errs.NewError(errs.AuthenticationFailure, nil, errs.TokenInvalid)
+		return UserClaimsRefresh{}, errs.NewError(errs.AuthenticationFailure, nil, domain.TokenInvalid)
 	}
 	return claim, nil
 }
