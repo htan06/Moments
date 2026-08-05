@@ -51,7 +51,7 @@ func main() {
 
 	v1 := router.Group("/api/v1")
 
-	authModule := auth.InitAuthModule(postgresConn, redisConn, gmailDialer, jwtProvider, mailAddress)
+	authModule := auth.InitAuthModule(postgresConn, redisConn, gmailDialer, mailAddress, jwtConfig)
 	authModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken(), jwtMiddleware.RequireRefreshToken())
 
 	userModule := user.InitUserModule(postgresConn, redisConn, objectStorageConn)

@@ -19,14 +19,15 @@ func InitAuthModule(
 	postgresConn *pgxpool.Pool,
 	redisConn *redis.Client,
 	dialer *gomail.Dialer,
-	jwtProvider *security.JWTProvier,
 	mailAddress *config.MailAddress,
+	jwtConfig *config.JWTConfig,
 ) *AuthModule {
 
 	userRepo := infra.NewPostgresUserRepository(postgresConn)
 	cacheRepository := infra.NewRedisCacheRepository(redisConn)
 	emailOTPSender := infra.NewGmailOTPSender(dialer, mailAddress)
 	otpProvider := security.NewOTPProvider()
+	jwtProvider := security.NewJWTProvider(jwtConfig)
 
 	registerUsecase := usecase.NewRegisterUsecase(otpProvider, cacheRepository, emailOTPSender)
 	verifyRegisterOTP := usecase.NewVerifyRegisterOTPUsecase(userRepo, cacheRepository, jwtProvider)
@@ -39,7 +40,8 @@ func InitAuthModule(
 		verifyRegisterOTP,
 		loginPasswordUsecase,
 		changePasswordUsecase,
-		refreshTokenUsecase)
+		refreshTokenUsecase,
+		jwtConfig)
 
 	return &AuthModule{
 		authHandler: authHandler,

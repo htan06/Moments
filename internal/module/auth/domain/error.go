@@ -17,4 +17,5 @@ const (
 	UsernameOrPasswordInvalid errs.ErrorCode = "USERNAME_OR_PASSWORD_INVALID"
 	UserNonActiveErr          errs.ErrorCode = "USER_NON_ACTIVE"
 	TokenInvalid              errs.ErrorCode = "TOKEN_INVALID"
+	PasswordTooShort          errs.ErrorCode = "PASSWORD_TOO_SHORT"
 )

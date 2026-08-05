@@ -67,7 +67,7 @@ func (pur *PostgresUserRepository) GetSelfProfileByUsername(ctx context.Context,
 
 	row, err := pur.conn.Query(ctx, query, username)
 	if err != nil {
-		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository.GetProfileByUsername: %w", err)
+		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository.GetSelfProfileByUsername: %w", err)
 	}
 
 	profile, err := pgx.CollectOneRow[domain.ProfileReadModel](row, pgx.RowToStructByName)
@@ -75,7 +75,7 @@ func (pur *PostgresUserRepository) GetSelfProfileByUsername(ctx context.Context,
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ProfileReadModel{}, errs.NewError(errs.NotFound, err, domain.UserNotFound)
 		}
-		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository[FindByUsername]: %w", err)
+		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository.GetSelfProfileByUsername: %w", err)
 	}
 
 	return profile, nil
@@ -107,7 +107,7 @@ func (pur *PostgresUserRepository) GetOtherProfileByUsername(ctx context.Context
 
 	row, err := pur.conn.Query(ctx, query, currentUserID, targetUsername)
 	if err != nil {
-		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository.GetProfileByUsername: %w", err)
+		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository.GetOtherProfileByUsername: %w", err)
 	}
 
 	profile, err := pgx.CollectOneRow[domain.ProfileReadModel](row, pgx.RowToStructByName)
@@ -115,7 +115,7 @@ func (pur *PostgresUserRepository) GetOtherProfileByUsername(ctx context.Context
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ProfileReadModel{}, errs.NewError(errs.NotFound, err, domain.UserNotFound)
 		}
-		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository[FindByUsername]: %w", err)
+		return domain.ProfileReadModel{}, fmt.Errorf("PostgresUserRepository.GetOtherProfileByUsername: %w", err)
 	}
 
 	return profile, nil

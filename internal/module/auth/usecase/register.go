@@ -48,6 +48,10 @@ func (ru *RegisterUsecase) Execute(ctx context.Context, cmd RegisterCmd) error {
 		return errs.NewError(errs.Invalid, nil, domain.UsernameInvalid)
 	}
 
+	if len(cmd.Password) < 6 {
+		return errs.NewError(errs.Invalid, nil, domain.PasswordTooShort)
+	}
+
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(cmd.Password), 10)
 	if err != nil {
 		return fmt.Errorf("RegisterUsecase.Excute %w", err)

@@ -2,8 +2,10 @@ package infra
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/htan06/echo-messenger-rest-api/internal/errs"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/follow/domain"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -26,7 +28,8 @@ func (pfr *PostgresFollowRepository) CreateFollow(ctx context.Context, follow do
 
 	var id int64
 	if err := pfr.conn.QueryRow(ctx, insertQuery, follow.FollowerID, follow.FollowingID).Scan(&id); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("PostgresFollowRepository.CreateFollow: %w", err)
+
 	}
 
 	return &id, nil
@@ -35,6 +38,9 @@ func (pfr *PostgresFollowRepository) CreateFollow(ctx context.Context, follow do
 func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, username string, limit int32, offset int32) ([]domain.UserSummary, error) {
 	var userID int64
 	if err := pfr.conn.QueryRow(ctx, "SELECT id FROM profile.users WHERE username = $1;", username).Scan(&userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errs.NewError(errs.NotFound, nil, domain.UserNotFound)
+		}
 		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
 	}
 
@@ -50,6 +56,7 @@ func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, username 
 	if err != nil {
 		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
 	}
+	defer rows.Close()
 
 	users, err := pgx.CollectRows[domain.UserSummary](rows, pgx.RowToStructByName)
 
@@ -63,6 +70,9 @@ func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, username 
 func (pfr *PostgresFollowRepository) GetFollowers(ctx context.Context, username string, limit int32, offset int32) ([]domain.UserSummary, error) {
 	var userID int64
 	if err := pfr.conn.QueryRow(ctx, "SELECT id FROM profile.users WHERE username = $1;", username).Scan(&userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errs.NewError(errs.NotFound, nil, domain.UserNotFound)
+		}
 		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
 	}
 
@@ -78,6 +88,7 @@ func (pfr *PostgresFollowRepository) GetFollowers(ctx context.Context, username 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	users, err := pgx.CollectRows[domain.UserSummary](rows, pgx.RowToStructByName)
 

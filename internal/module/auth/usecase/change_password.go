@@ -41,6 +41,10 @@ func (cu *ChangePasswordUsecase) Execute(ctx context.Context, cmd ChangePassword
 		return errs.NewError(errs.AuthenticationFailure, nil, domain.UserNonActiveErr)
 	}
 
+	if len(cmd.NewPassword) < 6 {
+		return errs.NewError(errs.Invalid, nil, domain.PasswordTooShort)
+	}
+
 	newPasswordHash, err := bcrypt.GenerateFromPassword([]byte(cmd.NewPassword), 10)
 	if err != nil {
 		return fmt.Errorf("ChangePasswordUsecase.Excute %w", err)

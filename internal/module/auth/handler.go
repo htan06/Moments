@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/htan06/echo-messenger-rest-api/internal/api"
+	"github.com/htan06/echo-messenger-rest-api/internal/config"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/usecase"
 )
 
@@ -14,6 +15,7 @@ type AuthHandler struct {
 	loginPasswordUsecase     *usecase.LoginPasswordUsecase
 	changePasswordUsecase    *usecase.ChangePasswordUsecase
 	refreshTokenUsecase      *usecase.RefreshTokenUsecase
+	jwtConfig                *config.JWTConfig
 }
 
 func NewAuthHandler(
@@ -22,6 +24,7 @@ func NewAuthHandler(
 	loginPasswordUsecase *usecase.LoginPasswordUsecase,
 	changePasswordUsecase *usecase.ChangePasswordUsecase,
 	refreshTokenUsecase *usecase.RefreshTokenUsecase,
+	jwtConfig *config.JWTConfig,
 ) *AuthHandler {
 	return &AuthHandler{
 		registerUsecase:          registerUsecase,
@@ -29,6 +32,7 @@ func NewAuthHandler(
 		loginPasswordUsecase:     loginPasswordUsecase,
 		changePasswordUsecase:    changePasswordUsecase,
 		refreshTokenUsecase:      refreshTokenUsecase,
+		jwtConfig:                jwtConfig,
 	}
 }
 

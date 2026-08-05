@@ -10,5 +10,6 @@ const (
 	FollowInvalid        errs.ErrorCode = "FOLLOW_INVALID"
 
 	UserNotFound errs.ErrorCode = "USER_NOT_FOUND"
-	MediaIDEmpty errs.ErrorCode = ""
+
+	PaginationInvalid errs.ErrorCode = "PAGINATION_INVALID"
 )

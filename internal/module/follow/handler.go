@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/htan06/echo-messenger-rest-api/internal/api"
+	"github.com/htan06/echo-messenger-rest-api/internal/errs"
+	"github.com/htan06/echo-messenger-rest-api/internal/module/follow/domain"
 	"github.com/htan06/echo-messenger-rest-api/internal/module/follow/usecase"
 )
 
@@ -84,6 +86,11 @@ func (fh *FollowHandler) handlerGetFollowing(c *gin.Context) {
 		return
 	}
 
+	if page < 1 || pageSize < 1 || pageSize > 50 {
+		api.HandleError(c, errs.NewError(errs.Invalid, nil, domain.PaginationInvalid))
+		return
+	}
+
 	qry := usecase.GetFollowingQry{
 		Username: username,
 		Page:     int32(page),
@@ -113,6 +120,11 @@ func (fh *FollowHandler) handlerGetFollowers(c *gin.Context) {
 	pageSize, err := strconv.ParseInt(c.Query("page_size"), 10, 32)
 	if err != nil {
 		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	if page < 1 || pageSize < 1 || pageSize > 50 {
+		api.HandleError(c, errs.NewError(errs.Invalid, nil, domain.PaginationInvalid))
 		return
 	}
 
