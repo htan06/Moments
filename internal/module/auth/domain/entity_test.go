@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
+	"github.com/htan06/Moments/internal/errs"
 )
 
 func TestNewUserSuccess(t *testing.T) {

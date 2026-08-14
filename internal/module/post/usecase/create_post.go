@@ -12,8 +12,8 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
+	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/internal/module/post/domain"
 
 	_ "image/gif"  // Registers GIF decoder
 	_ "image/jpeg" // Registers JPEG decoder

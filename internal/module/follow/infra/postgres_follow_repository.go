@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/follow/domain"
+	"github.com/htan06/Moments/internal/errs"
+	"github.com/htan06/Moments/internal/module/follow/domain"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -44,7 +44,7 @@ func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, username 
 		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
 	}
 
-	query := `SELECT f.id as follow_id, u.id as user_id, u.username, u.name, u.avatar_id, f.created_at
+	query := `SELECT f.id as follow_id, u.id as user_id, u.username, u.name, u.avatar_thumbnail_id, f.created_at
 				FROM social.follows f
 				JOIN profile.users u
 					ON f.following_id = u.id
@@ -76,7 +76,7 @@ func (pfr *PostgresFollowRepository) GetFollowers(ctx context.Context, username 
 		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
 	}
 
-	query := `SELECT f.id as follow_id, u.id as user_id, u.username, u.name, u.avatar_id, f.created_at
+	query := `SELECT f.id as follow_id, u.id as user_id, u.username, u.name, u.avatar_thumbnail_id, f.created_at
 				FROM social.follows f
 				JOIN profile.users u
 					ON f.follower_id = u.id

@@ -5,13 +5,13 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/echo-messenger-rest-api/internal/api/middleware"
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/auth"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/follow"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/post"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/user"
-	"github.com/htan06/echo-messenger-rest-api/internal/security"
+	"github.com/htan06/Moments/internal/api/middleware"
+	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/internal/module/auth"
+	"github.com/htan06/Moments/internal/module/follow"
+	"github.com/htan06/Moments/internal/module/post"
+	"github.com/htan06/Moments/internal/module/user"
+	"github.com/htan06/Moments/internal/security"
 	"github.com/joho/godotenv"
 )
 

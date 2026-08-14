@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/module/follow/domain"
+	"github.com/htan06/Moments/internal/module/follow/domain"
 )
 
 type RemoveFollowCmd struct {

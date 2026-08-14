@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/user/domain"
+	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/internal/module/user/domain"
 )
 
 type ChangeAvatarUsecase struct {

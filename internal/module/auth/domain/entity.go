@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
+	"github.com/htan06/Moments/internal/errs"
 )
 
 type UserStatus string

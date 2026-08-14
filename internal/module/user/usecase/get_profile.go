@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/user/domain"
+	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/internal/errs"
+	"github.com/htan06/Moments/internal/module/user/domain"
 )
 
 type GetProfileQry struct {

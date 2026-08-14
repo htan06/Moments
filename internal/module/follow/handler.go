@@ -5,10 +5,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/echo-messenger-rest-api/internal/api"
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/follow/domain"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/follow/usecase"
+	"github.com/htan06/Moments/internal/api"
+	"github.com/htan06/Moments/internal/errs"
+	"github.com/htan06/Moments/internal/module/follow/domain"
+	"github.com/htan06/Moments/internal/module/follow/usecase"
 )
 
 type FollowHandler struct {

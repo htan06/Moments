@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
+	"github.com/htan06/Moments/internal/module/post/domain"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

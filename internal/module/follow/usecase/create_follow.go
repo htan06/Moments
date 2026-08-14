@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/follow/domain"
+	"github.com/htan06/Moments/internal/errs"
+	"github.com/htan06/Moments/internal/module/follow/domain"
 )
 
 type CreateFollowCmd struct {

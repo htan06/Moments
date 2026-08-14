@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/security"
+	"github.com/htan06/Moments/internal/security"
 )
 
 func TestRandOTP(t *testing.T) {

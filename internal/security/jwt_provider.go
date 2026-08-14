@@ -5,10 +5,9 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
-	model "github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
+	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/internal/errs"
+	"github.com/htan06/Moments/internal/module/auth/domain"
 )
 
 type UserClaimsAccess struct {
@@ -34,7 +33,7 @@ func NewJWTProvider(cfg *config.JWTConfig) *JWTProvier {
 	}
 }
 
-func (jp *JWTProvier) GenerateAccessToken(user model.User) (string, error) {
+func (jp *JWTProvier) GenerateAccessToken(user domain.User) (string, error) {
 	claim := UserClaimsAccess{
 		UserID:   user.ID,
 		Name:     user.Name,
@@ -71,7 +70,7 @@ func (jp *JWTProvier) ParseAccessToken(tokenString string) (UserClaimsAccess, er
 	return claim, nil
 }
 
-func (jp *JWTProvier) GenerateRefreshToken(user model.User) (string, error) {
+func (jp *JWTProvier) GenerateRefreshToken(user domain.User) (string, error) {
 	claim := UserClaimsRefresh{
 		UserID:   user.ID,
 		Username: user.Username,

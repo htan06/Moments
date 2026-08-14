@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
+	"github.com/htan06/Moments/internal/errs"
 )
 
 var errorTypeTable = map[errs.ErrorType]int{

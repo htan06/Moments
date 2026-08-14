@@ -11,6 +11,7 @@ type UserRepository interface {
 	GetSelfProfileByUsername(ctx context.Context, username string) (ProfileReadModel, error)
 	GetOtherProfileByUsername(ctx context.Context, currentUserID int64, targetUsername string) (ProfileReadModel, error)
 	UpdateAvatarID(ctx context.Context, userID int64, avatarID string) error
+	FindProfilesByUsername(ctx context.Context, username string) ([]ProfileSummaryReadModel, error)
 }
 
 type CacheReposiotry interface {

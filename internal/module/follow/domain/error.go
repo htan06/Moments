@@ -1,6 +1,6 @@
 package domain
 
-import "github.com/htan06/echo-messenger-rest-api/internal/errs"
+import "github.com/htan06/Moments/internal/errs"
 
 const (
 	ReceiverNotFound      errs.ErrorCode = "RECEIVER_NOT_FOUND"

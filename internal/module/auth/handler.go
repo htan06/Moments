@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/echo-messenger-rest-api/internal/api"
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/usecase"
+	"github.com/htan06/Moments/internal/api"
+	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/internal/module/auth/usecase"
 )
 
 type AuthHandler struct {

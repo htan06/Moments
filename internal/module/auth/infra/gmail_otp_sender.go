@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
+	"github.com/htan06/Moments/internal/config"
 	"gopkg.in/gomail.v2"
 )
 

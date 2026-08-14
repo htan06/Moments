@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
+	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/internal/module/post/domain"
 )
 
 type GetUserPostsUC struct {

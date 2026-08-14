@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
+	"github.com/htan06/Moments/internal/module/post/domain"
 	"github.com/redis/go-redis/v9"
 )
 

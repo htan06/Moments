@@ -2,10 +2,10 @@ package auth
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/infra"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/usecase"
-	"github.com/htan06/echo-messenger-rest-api/internal/security"
+	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/internal/module/auth/infra"
+	"github.com/htan06/Moments/internal/module/auth/usecase"
+	"github.com/htan06/Moments/internal/security"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"gopkg.in/gomail.v2"

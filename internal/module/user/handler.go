@@ -4,25 +4,28 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/echo-messenger-rest-api/internal/api"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/user/usecase"
+	"github.com/htan06/Moments/internal/api"
+	"github.com/htan06/Moments/internal/module/user/usecase"
 )
 
 type UserHandler struct {
 	getProfileUsecase    *usecase.GetProfileUsecase
 	updateProfileUsecase *usecase.UpdateProfileUsecase
 	changeAvatarUsecase  *usecase.ChangeAvatarUsecase
+	searchUC             *usecase.SearchUC
 }
 
 func NewUserHandler(
 	getProfileUsecase *usecase.GetProfileUsecase,
 	updateProfileUsecase *usecase.UpdateProfileUsecase,
 	changeAvatarUsecase *usecase.ChangeAvatarUsecase,
+	searchUC *usecase.SearchUC,
 ) *UserHandler {
 	return &UserHandler{
 		getProfileUsecase:    getProfileUsecase,
 		updateProfileUsecase: updateProfileUsecase,
 		changeAvatarUsecase:  changeAvatarUsecase,
+		searchUC:             searchUC,
 	}
 }
 
@@ -124,4 +127,22 @@ func (uh *UserHandler) HandlerCompletedUpload(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"avatar_url": avatarURL})
+}
+
+func (uh *UserHandler) HandleFindProfiles(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	username := c.Query("username")
+	if username == "" {
+		c.JSON(http.StatusOK, nil)
+		return
+	}
+
+	profiles, err := uh.searchUC.Execute(ctx, username)
+	if err != nil {
+		api.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, profiles)
 }

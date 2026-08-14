@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/follow/domain"
+	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/internal/module/follow/domain"
 )
 
 type GetFollowingQry struct {
@@ -32,8 +32,8 @@ func (gfu *GetFollowingUsecase) Execute(ctx context.Context, qry GetFollowingQry
 	}
 
 	for _, u := range users {
-		if u.AvatarURL != nil {
-			*u.AvatarURL = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarBucket, *u.AvatarURL)
+		if u.AvatarThumbnailURL != nil {
+			*u.AvatarThumbnailURL = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarBucket, *u.AvatarThumbnailURL)
 		}
 	}
 	return users, nil

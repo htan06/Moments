@@ -6,10 +6,10 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
-	"github.com/htan06/echo-messenger-rest-api/internal/security"
+	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/internal/errs"
+	"github.com/htan06/Moments/internal/module/auth/domain"
+	"github.com/htan06/Moments/internal/security"
 	"golang.org/x/crypto/bcrypt"
 )
 

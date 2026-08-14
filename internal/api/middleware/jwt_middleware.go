@@ -5,21 +5,21 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/echo-messenger-rest-api/internal/api"
-	"github.com/htan06/echo-messenger-rest-api/internal/security"
+	"github.com/htan06/Moments/internal/api"
+	"github.com/htan06/Moments/internal/security"
 )
 
-type JWTMiddleWare struct {
+type JWTMiddleware struct {
 	jwtProvider *security.JWTProvier
 }
 
-func NewJWTMiddleware(jwtProvider *security.JWTProvier) *JWTMiddleWare {
-	return &JWTMiddleWare{
+func NewJWTMiddleware(jwtProvider *security.JWTProvier) *JWTMiddleware {
+	return &JWTMiddleware{
 		jwtProvider: jwtProvider,
 	}
 }
 
-func (jwtm *JWTMiddleWare) RequireAccessToken() gin.HandlerFunc {
+func (jwtm *JWTMiddleware) RequireAccessToken() gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		authorization := c.GetHeader("Authorization")
@@ -43,7 +43,7 @@ func (jwtm *JWTMiddleWare) RequireAccessToken() gin.HandlerFunc {
 	}
 }
 
-func (jwtm *JWTMiddleWare) RequireRefreshToken() gin.HandlerFunc {
+func (jwtm *JWTMiddleware) RequireRefreshToken() gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		authorization := c.GetHeader("Authorization")

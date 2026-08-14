@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/user/domain"
+	"github.com/htan06/Moments/internal/errs"
+	"github.com/htan06/Moments/internal/module/user/domain"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -55,6 +55,7 @@ func (pur *PostgresUserRepository) GetSelfProfileByUsername(ctx context.Context,
 					username,
 					name,
 					avatar_id,
+					avatar_thumbnail_id,
 					bio,
 
 					followers_count,
@@ -87,6 +88,7 @@ func (pur *PostgresUserRepository) GetOtherProfileByUsername(ctx context.Context
 					u.username,
 					u.name,
 					u.avatar_id,
+					u.avatar_thumbnail_id,
 					u.bio,
 
 					u.followers_count,
@@ -128,4 +130,16 @@ func (pur *PostgresUserRepository) UpdateAvatarID(ctx context.Context, userID in
 		return fmt.Errorf("PostgresUserRepository.UpdateAvatarID: %w", err)
 	}
 	return nil
+}
+
+func (pur *PostgresUserRepository) FindProfilesByUsername(ctx context.Context, username string) ([]domain.ProfileSummaryReadModel, error) {
+	query := `SELECT id AS user_id, username, name, avatar_thumbnail_id FROM profile.users WHERE username LIKE $1 ||'%' LIMIT 10;`
+
+	rows, err := pur.conn.Query(ctx, query, username)
+	if err != nil {
+		return []domain.ProfileSummaryReadModel{}, fmt.Errorf("PostgresUserRepository.FindProfilesByUsername: %w", err)
+	}
+
+	profileSummaries, err := pgx.CollectRows(rows, pgx.RowToStructByName[domain.ProfileSummaryReadModel])
+	return profileSummaries, nil
 }

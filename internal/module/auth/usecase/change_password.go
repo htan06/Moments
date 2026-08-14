@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/errs"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
+	"github.com/htan06/Moments/internal/errs"
+	"github.com/htan06/Moments/internal/module/auth/domain"
 	"golang.org/x/crypto/bcrypt"
 )
 

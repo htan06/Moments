@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/config"
+	"github.com/htan06/Moments/internal/config"
 	"github.com/minio/minio-go/v7"
 )
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/htan06/echo-messenger-rest-api/internal/module/auth/domain"
-	"github.com/htan06/echo-messenger-rest-api/internal/security"
+	"github.com/htan06/Moments/internal/module/auth/domain"
+	"github.com/htan06/Moments/internal/security"
 )
 
 type RefreshTokenUsecase struct {

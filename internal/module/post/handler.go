@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/echo-messenger-rest-api/internal/api"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/post/domain"
-	"github.com/htan06/echo-messenger-rest-api/internal/module/post/usecase"
+	"github.com/htan06/Moments/internal/api"
+	"github.com/htan06/Moments/internal/module/post/domain"
+	"github.com/htan06/Moments/internal/module/post/usecase"
 )
 
 type PostHandler struct {
