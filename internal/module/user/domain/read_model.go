@@ -14,12 +14,17 @@ type ProfileReadModel struct {
 	Relationship       *Relationship `json:"relationship,omitempty" db:"relationship"`
 }
 
-type Relationship string
+type Relationship struct {
+	FollowId *int64           `json:"follow_id" db:"follow_id"`
+	Type     RelationshipType `json:"type" db:"type"`
+}
+
+type RelationshipType string
 
 const (
-	Blocked   Relationship = "BLOCKED"
-	Following Relationship = "FOLLOWING"
-	None      Relationship = "NONE"
+	Blocked   RelationshipType = "BLOCKED"
+	Following RelationshipType = "FOLLOWING"
+	None      RelationshipType = "NONE"
 )
 
 type ProfileSummaryReadModel struct {

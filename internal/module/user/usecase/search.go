@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/htan06/Moments/internal/config"
 	"github.com/htan06/Moments/internal/module/user/domain"
 )
 
@@ -21,6 +22,12 @@ func (s *SearchUC) Execute(ctx context.Context, username string) ([]domain.Profi
 	profiles, err := s.userRepo.FindProfilesByUsername(ctx, username)
 	if err != nil {
 		return []domain.ProfileSummaryReadModel{}, fmt.Errorf("SearchUC.Execute: %w", err)
+	}
+
+	for _, p := range profiles {
+		if p.AvatarThumbnailURL != nil {
+			*p.AvatarThumbnailURL = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarBucket, *p.AvatarThumbnailURL)
+		}
 	}
 	return profiles, nil
 }

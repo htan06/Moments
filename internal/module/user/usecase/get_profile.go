@@ -48,5 +48,10 @@ func (gpu *GetProfileUsecase) Execute(ctx context.Context, qry GetProfileQry) (d
 	if p.AvatarURL != nil {
 		*p.AvatarURL = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarBucket, *p.AvatarURL)
 	}
+
+	if p.AvatarThumbnailURL != nil {
+		*p.AvatarThumbnailURL = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarBucket, *p.AvatarThumbnailURL)
+	}
+
 	return p, nil
 }

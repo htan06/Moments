@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/gin-gonic/gin"
 	"github.com/htan06/Moments/internal/api/middleware"
 	"github.com/htan06/Moments/internal/config"
@@ -20,6 +21,11 @@ func main() {
 	if err != nil {
 		log.Println("WAR: Cannot load .env file")
 	}
+
+	if err := vips.Startup(nil); err != nil {
+		log.Fatal("libvips not avaiable")
+	}
+	defer vips.Shutdown()
 
 	privateKeyPath := os.Getenv("PRIVATE_KEY_PATH")
 	privateData, err := os.ReadFile(privateKeyPath)

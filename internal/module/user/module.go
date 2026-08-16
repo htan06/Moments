@@ -21,10 +21,11 @@ func InitUserModule(
 	userRepo := infra.NewPostgresUserRepository(postgresConn)
 	cacheRepo := infra.NewRedisCacheRepository(redisConn)
 	objectStorage := infra.NewMinIOStorage(storageConn)
+	processImg := infra.NewProcessImg()
 
 	getProfileUsecase := usecase.NewGetProfileUsecase(userRepo)
 	updateProfileUsecase := usecase.NewUpdateProfileUsecase(userRepo)
-	changeAvatarUsecase := usecase.NewChangeAvatarUsecase(userRepo, cacheRepo, objectStorage)
+	changeAvatarUsecase := usecase.NewChangeAvatarUsecase(userRepo, cacheRepo, objectStorage, processImg)
 	searchUC := usecase.NewSearchUC(userRepo)
 	userHandler := NewUserHandler(getProfileUsecase, updateProfileUsecase, changeAvatarUsecase, searchUC)
 

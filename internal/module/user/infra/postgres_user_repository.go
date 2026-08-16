@@ -94,15 +94,14 @@ func (pur *PostgresUserRepository) GetOtherProfileByUsername(ctx context.Context
 					u.followers_count,
 					u.following_count,
 					u.posts_count,
-					CASE
-						WHEN EXISTS (
-								SELECT 1 
-								FROM social.follows f
-								WHERE f.follower_id = $1 AND f.following_id = u.id)
-						THEN 'FOLLOWING'
-						ELSE 'NONE'
-					END
-					as relationship
+					COALESCE(
+						(SELECT 
+							json_build_object('type', 'FOLLOWING', 'follow_id', id) 
+							FROM social.follows f 
+							WHERE f.follower_id = $1 AND f.following_id = u.id
+						),
+						json_build_object('type', 'NONE', 'follow_id', null)
+					) as relationship
 
 				FROM profile.users u
 				WHERE username = $2;`
@@ -123,10 +122,10 @@ func (pur *PostgresUserRepository) GetOtherProfileByUsername(ctx context.Context
 	return profile, nil
 }
 
-func (pur *PostgresUserRepository) UpdateAvatarID(ctx context.Context, userID int64, avatarID string) error {
-	query := `UPDATE profile.users SET avatar_id = $1 WHERE id = $2;`
+func (pur *PostgresUserRepository) UpdateAvatarIDAndAvatarThumbnailID(ctx context.Context, userID int64, avatarID string, avatarThumbnailID string) error {
+	query := `UPDATE profile.users SET avatar_id = $1, avatar_thumbnail_id = $2 WHERE id = $3;`
 
-	if _, err := pur.conn.Exec(ctx, query, avatarID, userID); err != nil {
+	if _, err := pur.conn.Exec(ctx, query, avatarID, avatarThumbnailID, userID); err != nil {
 		return fmt.Errorf("PostgresUserRepository.UpdateAvatarID: %w", err)
 	}
 	return nil
