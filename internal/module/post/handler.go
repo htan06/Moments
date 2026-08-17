@@ -31,7 +31,7 @@ func NewPostHandler(
 	}
 }
 
-func (ph *PostHandler) handlerCreatePost(c *gin.Context) {
+func (ph *PostHandler) handlerUploadPost(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	currentuser, exists := api.GetCurrentUser(c)
@@ -41,7 +41,7 @@ func (ph *PostHandler) handlerCreatePost(c *gin.Context) {
 	}
 
 	var req struct {
-		UploadSessionID string             `json:"upload_session_id"`
+		UploadSessionID string             `json:"session_id"`
 		Contents        []usecase.Content  `json:"contents"`
 		Visibility      domain.Visibility  `json:"visibility"`
 		AspectRatio     domain.AspectRatio `json:"aspect_ratio"`
@@ -52,7 +52,7 @@ func (ph *PostHandler) handlerCreatePost(c *gin.Context) {
 		return
 	}
 
-	cmd := usecase.CreatePostCmd{
+	cmd := usecase.UploadPostCmd{
 		UpLoadSessionID: req.UploadSessionID,
 		AuthorID:        currentuser.ID(),
 		Contents:        req.Contents,
@@ -60,7 +60,7 @@ func (ph *PostHandler) handlerCreatePost(c *gin.Context) {
 		AspectRatio:     req.AspectRatio,
 	}
 
-	postID, err := ph.createPostUC.ExecuteCreatePost(ctx, cmd)
+	postID, err := ph.createPostUC.ExecuteUploadPost(ctx, cmd)
 	if err != nil {
 		api.HandleError(c, err)
 		return
@@ -71,7 +71,7 @@ func (ph *PostHandler) handlerCreatePost(c *gin.Context) {
 	})
 }
 
-func (ph *PostHandler) handlerPrepareUploadPost(c *gin.Context) {
+func (ph *PostHandler) handlerCreatePostSession(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	var req struct {
@@ -88,19 +88,19 @@ func (ph *PostHandler) handlerPrepareUploadPost(c *gin.Context) {
 		return
 	}
 
-	cmd := usecase.PrepareUploadPostCmd{
+	cmd := usecase.CreatePostSessionCmd{
 		UserID:     currentUser.ID(),
 		MediaCount: req.MediaCount,
 	}
 
-	res, err := ph.createPostUC.ExecutePrepareUploadPost(ctx, cmd)
+	res, err := ph.createPostUC.ExecuteCreatePostSession(ctx, cmd)
 	if err != nil {
 		api.HandleError(c, err)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"upload_session_id": res.SessionID,
-		"presigned_urls":    res.PresignedURLs,
+		"session_id":  res.SessionID,
+		"upload_urls": res.PresignedURLs,
 	})
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/htan06/Moments/internal/errs"
 	"github.com/htan06/Moments/internal/module/user/domain"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -22,8 +23,24 @@ func NewPostgresUserRepository(conn *pgxpool.Pool) *PostgresUserRepository {
 	}
 }
 
+func (pur *PostgresUserRepository) CreateProfile(ctx context.Context, p domain.Profile) error {
+	qry := `INSERT INTO profile.users (user_id, name, username, followers_count, following_count, posts_count)
+			VALUES ($1, $2, $3, $4, $5, $6);`
+
+	_, err := pur.conn.Exec(ctx, qry, p.UserID, p.Name, p.Username, p.FollowersCount, p.FollowingCount, p.PostsCount)
+	if err != nil {
+		if pgerr, ok := errors.AsType[*pgconn.PgError](err); ok &&
+			pgerr.Code == "23505" &&
+			pgerr.ConstraintName == "users_username_key" {
+			return errs.NewError(errs.Conflict, err, domain.UsernameAlreadyUsed)
+		}
+		return fmt.Errorf("PostgresUserRepository.CreateProfile: %w", err)
+	}
+	return nil
+}
+
 func (pur *PostgresUserRepository) GetAvatarIDByUserID(ctx context.Context, userID int64) (*string, error) {
-	query := `SELECT avatar_id FROM profile.users WHERE id = $1;`
+	query := `SELECT avatar_id FROM profile.users WHERE user_id = $1;`
 
 	var id *string
 	if err := pur.conn.QueryRow(ctx, query, userID).Scan(&id); err != nil {
@@ -51,7 +68,7 @@ func (pur *PostgresUserRepository) UpdateProfile(ctx context.Context, userID int
 
 func (pur *PostgresUserRepository) GetSelfProfileByUsername(ctx context.Context, username string) (domain.ProfileReadModel, error) {
 	query := `SELECT
-					id AS user_id,
+					user_id,
 					username,
 					name,
 					avatar_id,
@@ -84,7 +101,7 @@ func (pur *PostgresUserRepository) GetSelfProfileByUsername(ctx context.Context,
 
 func (pur *PostgresUserRepository) GetOtherProfileByUsername(ctx context.Context, currentUserID int64, targetUsername string) (domain.ProfileReadModel, error) {
 	query := `SELECT
-					u.id AS user_id,
+					u.user_id,
 					u.username,
 					u.name,
 					u.avatar_id,
@@ -98,7 +115,7 @@ func (pur *PostgresUserRepository) GetOtherProfileByUsername(ctx context.Context
 						(SELECT 
 							json_build_object('type', 'FOLLOWING', 'follow_id', id) 
 							FROM social.follows f 
-							WHERE f.follower_id = $1 AND f.following_id = u.id
+							WHERE f.follower_id = $1 AND f.following_id = u.user_id
 						),
 						json_build_object('type', 'NONE', 'follow_id', null)
 					) as relationship
@@ -123,7 +140,7 @@ func (pur *PostgresUserRepository) GetOtherProfileByUsername(ctx context.Context
 }
 
 func (pur *PostgresUserRepository) UpdateAvatarIDAndAvatarThumbnailID(ctx context.Context, userID int64, avatarID string, avatarThumbnailID string) error {
-	query := `UPDATE profile.users SET avatar_id = $1, avatar_thumbnail_id = $2 WHERE id = $3;`
+	query := `UPDATE profile.users SET avatar_id = $1, avatar_thumbnail_id = $2 WHERE user_id = $3;`
 
 	if _, err := pur.conn.Exec(ctx, query, avatarID, avatarThumbnailID, userID); err != nil {
 		return fmt.Errorf("PostgresUserRepository.UpdateAvatarID: %w", err)
@@ -132,7 +149,7 @@ func (pur *PostgresUserRepository) UpdateAvatarIDAndAvatarThumbnailID(ctx contex
 }
 
 func (pur *PostgresUserRepository) FindProfilesByUsername(ctx context.Context, username string) ([]domain.ProfileSummaryReadModel, error) {
-	query := `SELECT id AS user_id, username, name, avatar_thumbnail_id FROM profile.users WHERE username LIKE $1 ||'%' LIMIT 10;`
+	query := `SELECT user_id, username, name, avatar_thumbnail_id FROM profile.users WHERE username LIKE $1 ||'%' LIMIT 10;`
 
 	rows, err := pur.conn.Query(ctx, query, username)
 	if err != nil {

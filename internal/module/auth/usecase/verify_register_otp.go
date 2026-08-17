@@ -42,7 +42,7 @@ func (vru *VerifyRegisterOTPUsecase) Execute(ctx context.Context, cmd VerifyRegi
 	key := fmt.Sprintf("%s:%s", config.UserRegisterPrefix, cmd.Email)
 	userPending, err := vru.cacheRepo.GetUserPending(ctx, key)
 	if err != nil {
-		return err
+		return fmt.Errorf("VerifyRegisterOTPUsecase.Execute: %w", err)
 	}
 
 	if userPending.OTP != cmd.OTP {
@@ -50,19 +50,17 @@ func (vru *VerifyRegisterOTPUsecase) Execute(ctx context.Context, cmd VerifyRegi
 	}
 
 	user, err := domain.NewUser(
-		userPending.Username,
-		userPending.Name,
 		userPending.Email,
 		nil,
 		userPending.PasswordHash,
 	)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("VerifyRegisterOTPUsecase.Execute: %w", err)
 	}
 
 	if err := vru.userRepo.Create(ctx, *user); err != nil {
-		return err
+		return fmt.Errorf("VerifyRegisterOTPUsecase.Execute: %w", err)
 	}
 
 	return nil

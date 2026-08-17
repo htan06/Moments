@@ -11,15 +11,14 @@ import (
 )
 
 type UserClaimsAccess struct {
-	UserID   int64  `json:"user_id"`
-	Name     string `json:"name"`
-	Username string `json:"username"`
+	UserID     int64             `json:"user_id"`
+	UserStatus domain.UserStatus `json:"user_status"`
 	jwt.RegisteredClaims
 }
 
 type UserClaimsRefresh struct {
-	UserID   int64  `json:"user_id"`
-	Username string `json:"username"`
+	UserID     int64             `json:"user_id"`
+	UserStatus domain.UserStatus `json:"user_status"`
 	jwt.RegisteredClaims
 }
 
@@ -35,9 +34,8 @@ func NewJWTProvider(cfg *config.JWTConfig) *JWTProvier {
 
 func (jp *JWTProvier) GenerateAccessToken(user domain.User) (string, error) {
 	claim := UserClaimsAccess{
-		UserID:   user.ID,
-		Name:     user.Name,
-		Username: user.Username,
+		UserID:     user.ID,
+		UserStatus: user.Status,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.Email,
 			Issuer:    "echo-authenticator",
@@ -72,8 +70,8 @@ func (jp *JWTProvier) ParseAccessToken(tokenString string) (UserClaimsAccess, er
 
 func (jp *JWTProvier) GenerateRefreshToken(user domain.User) (string, error) {
 	claim := UserClaimsRefresh{
-		UserID:   user.ID,
-		Username: user.Username,
+		UserID:     user.ID,
+		UserStatus: user.Status,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.Email,
 			Issuer:    "echo-authenticator",

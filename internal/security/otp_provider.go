@@ -2,7 +2,7 @@ package security
 
 import "math/rand/v2"
 
-const charset = "0123456789"
+const OTPCharset = "0123456789"
 
 type OTPProvider struct {
 	charset       string
@@ -11,8 +11,8 @@ type OTPProvider struct {
 
 func NewOTPProvider() *OTPProvider {
 	return &OTPProvider{
-		charset:       charset,
-		charsetLength: len(charset),
+		charset:       OTPCharset,
+		charsetLength: len(OTPCharset),
 	}
 }
 

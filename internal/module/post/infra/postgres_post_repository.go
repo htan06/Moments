@@ -90,7 +90,7 @@ func (pr *PostgresPostRepository) GetPost(ctx context.Context, postID int64) (do
 
 				FROM content.posts p
 				JOIN profile.users u 
-					ON p.author_id = u.id
+					ON p.author_id = u.user_id
 				WHERE p.id = $1;`
 
 	postRows, err := pr.conn.Query(ctx, postQuery, postID)
@@ -156,10 +156,10 @@ type Mentions struct {
 
 func (pr *PostgresPostRepository) getMentionsByPostID(ctx context.Context, postID int64) (map[int64]string, error) {
 	queryMentions := `SELECT 
-						u.id as user_id, u.username 
+						u.user_id, u.username 
 					FROM content.post_mentions pm
 					JOIN profile.users u
-						ON pm.user_id = u.id
+						ON pm.user_id = u.user_id
 					WHERE pm.post_id = $1;`
 
 	mentionRows, err := pr.conn.Query(ctx, queryMentions, postID)
@@ -223,7 +223,7 @@ func (pr *PostgresPostRepository) GetPostsByUsername(ctx context.Context, userna
 					like_count,
 					comment_count
 				FROM content.posts
-				WHERE author_id = (SELECT id FROM profile.users WHERE username = $1);`
+				WHERE author_id = (SELECT user_id FROM profile.users WHERE username = $1);`
 
 	rows, err := pr.conn.Query(ctx, postQuery, username)
 	if err != nil {

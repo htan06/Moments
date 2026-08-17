@@ -37,17 +37,17 @@ func (pfr *PostgresFollowRepository) CreateFollow(ctx context.Context, follow do
 
 func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, username string, limit int32, offset int32) ([]domain.UserSummary, error) {
 	var userID int64
-	if err := pfr.conn.QueryRow(ctx, "SELECT id FROM profile.users WHERE username = $1;", username).Scan(&userID); err != nil {
+	if err := pfr.conn.QueryRow(ctx, "SELECT user_id FROM profile.users WHERE username = $1;", username).Scan(&userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errs.NewError(errs.NotFound, nil, domain.UserNotFound)
 		}
 		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
 	}
 
-	query := `SELECT f.id as follow_id, u.id as user_id, u.username, u.name, u.avatar_thumbnail_id, f.created_at
+	query := `SELECT f.id as follow_id, u.user_id, u.username, u.name, u.avatar_thumbnail_id, f.created_at
 				FROM social.follows f
 				JOIN profile.users u
-					ON f.following_id = u.id
+					ON f.following_id = u.user_id
 				WHERE f.follower_id = $1
 				LIMIT $2
 				OFFSET $3;`
@@ -69,17 +69,17 @@ func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, username 
 
 func (pfr *PostgresFollowRepository) GetFollowers(ctx context.Context, username string, limit int32, offset int32) ([]domain.UserSummary, error) {
 	var userID int64
-	if err := pfr.conn.QueryRow(ctx, "SELECT id FROM profile.users WHERE username = $1;", username).Scan(&userID); err != nil {
+	if err := pfr.conn.QueryRow(ctx, "SELECT user_id FROM profile.users WHERE username = $1;", username).Scan(&userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errs.NewError(errs.NotFound, nil, domain.UserNotFound)
 		}
 		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
 	}
 
-	query := `SELECT f.id as follow_id, u.id as user_id, u.username, u.name, u.avatar_thumbnail_id, f.created_at
+	query := `SELECT f.id as follow_id, u.user_id, u.username, u.name, u.avatar_thumbnail_id, f.created_at
 				FROM social.follows f
 				JOIN profile.users u
-					ON f.follower_id = u.id
+					ON f.follower_id = u.user_id
 				WHERE f.following_id = $1
 				LIMIT $2
 				OFFSET $3;`

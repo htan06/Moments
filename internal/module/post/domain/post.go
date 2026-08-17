@@ -67,6 +67,6 @@ type Post struct {
 	UpdatedAt    time.Time
 }
 
-type UploadPostSession struct {
+type CreatePostSession struct {
 	MediaIDs []string `json:"media_ids"`
 }

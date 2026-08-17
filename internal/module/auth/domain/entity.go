@@ -10,20 +10,18 @@ import (
 type UserStatus string
 
 var (
-	usernameRegex    = regexp.MustCompile(`^[a-zA-Z0-9_]{3,30}$`)
 	emailRegex       = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 	phoneNumberRegex = regexp.MustCompile(`^(?:([+]\d{1,4})[-.\s]?)?(?:[(](\d{1,3})[)][-.\s]?)?(\d{1,4})[-.\s]?(\d{1,4})[-.\s]?(\d{1,9})$`)
 )
 
 const (
-	UserActive    UserStatus = "ACTIVE"
-	UserNonActive UserStatus = "NON_ACTIVE"
+	UserStatusActive   UserStatus = "ACTIVE"
+	UserStatusInactive UserStatus = "INACTIVE"
+	UserStatusPending  UserStatus = "PENDING"
 )
 
 type User struct {
 	ID           int64
-	Username     string
-	Name         string
 	Email        string
 	PhoneNumber  *string
 	PasswordHash string
@@ -34,20 +32,18 @@ type User struct {
 }
 
 func NewUser(
-	username string,
-	name string,
 	email string,
 	phoneNumber *string,
 	passwordHash string,
 ) (*User, error) {
 
-	if !usernameRegex.MatchString(username) {
-		return nil, errs.NewError(errs.Invalid, nil, UsernameInvalid)
-	}
+	// if !usernameRegex.MatchString(username) {
+	// 	return nil, errs.NewError(errs.Invalid, nil, UsernameInvalid)
+	// }
 
-	if len(name) == 0 || len(name) > 100 {
-		return nil, errs.NewError(errs.Invalid, nil, NameInvalid)
-	}
+	// if len(name) == 0 || len(name) > 100 {
+	// 	return nil, errs.NewError(errs.Invalid, nil, NameInvalid)
+	// }
 
 	if !emailRegex.MatchString(email) {
 		return nil, errs.NewError(errs.Invalid, nil, EmailInvalid)
@@ -68,12 +64,12 @@ func NewUser(
 	now := time.Now().UTC()
 
 	return &User{
-		Username:     username,
-		Name:         name,
+		// Username:     username,
+		// Name:         name,
 		Email:        email,
 		PhoneNumber:  phoneNumber,
 		PasswordHash: passwordHash,
-		Status:       UserActive,
+		Status:       UserStatusPending,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}, nil
@@ -83,6 +79,4 @@ type UserPending struct {
 	OTP          string `json:"otp"`
 	Email        string `json:"email"`
 	PasswordHash string `json:"password_hash"`
-	Name         string `json:"name"`
-	Username     string `json:"username"`
 }

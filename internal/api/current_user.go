@@ -5,16 +5,16 @@ import (
 )
 
 type CurrentUser struct {
-	id       int64
-	username string
-	email    string
+	id     int64
+	email  string
+	status string
 }
 
-func NewCurrentUser(id int64, username string, email string) CurrentUser {
+func NewCurrentUser(id int64, email string, status string) CurrentUser {
 	return CurrentUser{
-		id:       id,
-		username: username,
-		email:    email,
+		id:     id,
+		email:  email,
+		status: status,
 	}
 }
 
@@ -22,12 +22,12 @@ func (u *CurrentUser) ID() int64 {
 	return u.id
 }
 
-func (u *CurrentUser) Username() string {
-	return u.username
-}
-
 func (u *CurrentUser) Email() string {
 	return u.email
+}
+
+func (u *CurrentUser) Status() string {
+	return u.status
 }
 
 func GetCurrentUser(c *gin.Context) (CurrentUser, bool) {

@@ -9,6 +9,7 @@ import (
 )
 
 type UserHandler struct {
+	createProfileUC      *usecase.CreateProfileUC
 	getProfileUsecase    *usecase.GetProfileUsecase
 	updateProfileUsecase *usecase.UpdateProfileUsecase
 	changeAvatarUsecase  *usecase.ChangeAvatarUsecase
@@ -16,17 +17,52 @@ type UserHandler struct {
 }
 
 func NewUserHandler(
+	createProfileUC *usecase.CreateProfileUC,
 	getProfileUsecase *usecase.GetProfileUsecase,
 	updateProfileUsecase *usecase.UpdateProfileUsecase,
 	changeAvatarUsecase *usecase.ChangeAvatarUsecase,
 	searchUC *usecase.SearchUC,
 ) *UserHandler {
 	return &UserHandler{
+		createProfileUC:      createProfileUC,
 		getProfileUsecase:    getProfileUsecase,
 		updateProfileUsecase: updateProfileUsecase,
 		changeAvatarUsecase:  changeAvatarUsecase,
 		searchUC:             searchUC,
 	}
+}
+
+func (uh *UserHandler) HandlerCreateProfile(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var req struct {
+		Name     string `json:"name"`
+		Username string `json:"username"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	currentuser, exists := api.GetCurrentUser(c)
+	if !exists {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	cmd := usecase.CreateProfileCmd{
+		UserID:   currentuser.ID(),
+		Name:     req.Name,
+		Username: req.Username,
+	}
+
+	userID, err := uh.createProfileUC.Execute(ctx, cmd)
+	if err != nil {
+		api.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"user_id": userID})
 }
 
 func (uh *UserHandler) HandlerGetProfile(c *gin.Context) {
@@ -45,9 +81,9 @@ func (uh *UserHandler) HandlerGetProfile(c *gin.Context) {
 	}
 
 	qry := usecase.GetProfileQry{
-		CurrentUserID:   currentuser.ID(),
-		CurrentUsername: currentuser.Username(),
-		TargetUsername:  username,
+		CurrentUserID: currentuser.ID(),
+		// CurrentUsername: currentuser.Username(),
+		TargetUsername: username,
 	}
 	profile, err := uh.getProfileUsecase.Execute(ctx, qry)
 	if err != nil {

@@ -20,8 +20,8 @@ var (
 type RegisterCmd struct {
 	Email    string
 	Password string
-	Name     string
-	Username string
+	// Name     string
+	// Username string
 }
 
 type RegisterUsecase struct {
@@ -44,10 +44,6 @@ func NewRegisterUsecase(
 }
 
 func (ru *RegisterUsecase) Execute(ctx context.Context, cmd RegisterCmd) error {
-	if !usernameRegex.MatchString(cmd.Username) {
-		return errs.NewError(errs.Invalid, nil, domain.UsernameInvalid)
-	}
-
 	if len(cmd.Password) < 6 {
 		return errs.NewError(errs.Invalid, nil, domain.PasswordTooShort)
 	}
@@ -57,22 +53,17 @@ func (ru *RegisterUsecase) Execute(ctx context.Context, cmd RegisterCmd) error {
 		return fmt.Errorf("RegisterUsecase.Excute %w", err)
 	}
 
-	otp := ru.otpProvider.RandOTP()
-
 	userPending := domain.UserPending{
-		OTP:          otp,
 		Email:        cmd.Email,
 		PasswordHash: string(passwordHash),
-		Name:         cmd.Name,
-		Username:     cmd.Username,
+		OTP:          ru.otpProvider.RandOTP(),
 	}
 
 	key := fmt.Sprintf("%s:%s", config.UserRegisterPrefix, cmd.Email)
-
 	if err := ru.cacheRepo.SetUserPendingIfNotExists(ctx, key, userPending, time.Minute*5); err != nil {
 		return fmt.Errorf("RegisterUsecase.Excute %w", err)
 	}
 
-	go ru.mailSender.SendOTP(ctx, cmd.Email, otp)
+	go ru.mailSender.SendOTP(ctx, cmd.Email, userPending.OTP)
 	return nil
 }

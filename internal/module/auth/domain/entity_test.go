@@ -16,36 +16,26 @@ func TestNewUserSuccess(t *testing.T) {
 
 	tests := []struct {
 		email        string
-		username     string
-		name         string
 		phoneNumber  *string
 		passwordHash string
 	}{
 		{
 			email:        "email1@example.com",
-			username:     "username1",
-			name:         "user1",
 			phoneNumber:  nil,
 			passwordHash: "pwdhash",
 		},
 		{
 			email:        "email2@example.com",
-			username:     "username2",
-			name:         "user2",
 			phoneNumber:  &phoneNumbers[0],
 			passwordHash: "pwdhash",
 		},
 		{
 			email:        "email2@example.com",
-			username:     "username2",
-			name:         "user2",
 			phoneNumber:  &phoneNumbers[1],
 			passwordHash: "pwdhash",
 		},
 		{
 			email:        "email2@example.com",
-			username:     "username2",
-			name:         "user2",
 			phoneNumber:  &phoneNumbers[2],
 			passwordHash: "pwdhash",
 		},
@@ -53,8 +43,6 @@ func TestNewUserSuccess(t *testing.T) {
 
 	for i, d := range tests {
 		user, err := NewUser(
-			d.username,
-			d.name,
 			d.email,
 			d.phoneNumber,
 			d.passwordHash,
@@ -65,38 +53,9 @@ func TestNewUserSuccess(t *testing.T) {
 	}
 }
 
-func TestNewUserFailureByUsernameInvalid(t *testing.T) {
-	phoneNumber := "0123456789"
-	user, err := NewUser(
-		"username  !",
-		"user1",
-		"email@email.email",
-		&phoneNumber,
-		"aaa",
-	)
-
-	if user != nil {
-		t.Fatalf("expected user nil")
-	}
-
-	if err == nil {
-		t.Fatalf("expected err")
-	}
-
-	domainErr, ok := errors.AsType[*errs.Error](err)
-	if !ok {
-		t.Fatalf("expected domain error")
-	}
-	if domainErr.Code != UsernameInvalid {
-		t.Fatalf("expected UsernameInvalid error")
-	}
-}
-
 func TestNewUserFailureByEmailInvalid(t *testing.T) {
 	phoneNumber := "0123456789"
 	user, err := NewUser(
-		"username",
-		"user1",
 		"emailemailemail",
 		&phoneNumber,
 		"aaa",
@@ -117,59 +76,6 @@ func TestNewUserFailureByEmailInvalid(t *testing.T) {
 	if domainErr.Code != EmailInvalid {
 		t.Fatalf("expected EmailInvalid error")
 	}
-}
-
-func TestNewUserFailureByNameInvalid(t *testing.T) {
-	phoneNumber := "0123456789"
-	tests := []struct {
-		email        string
-		username     string
-		name         string
-		phoneNumber  *string
-		passwordHash string
-	}{
-		{
-			email:        "email1@example.com",
-			username:     "username1",
-			name:         "",
-			phoneNumber:  &phoneNumber,
-			passwordHash: "pwdhash",
-		},
-		{
-			email:        "email2@example.com",
-			username:     "username2",
-			name:         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-			phoneNumber:  &phoneNumber,
-			passwordHash: "pwdhash",
-		},
-	}
-
-	for i, d := range tests {
-		user, err := NewUser(
-			d.username,
-			d.name,
-			d.email,
-			d.phoneNumber,
-			d.passwordHash,
-		)
-
-		if user != nil {
-			t.Fatalf("test[%d]: expected user nil", i)
-		}
-
-		if err == nil {
-			t.Fatalf("test[%d]: expected err", i)
-		}
-
-		domainErr, ok := errors.AsType[*errs.Error](err)
-		if !ok {
-			t.Fatalf("test[%d]: expected domain error", i)
-		}
-		if domainErr.Code != NameInvalid {
-			t.Fatalf("test[%d]: expected NameInvalid error", i)
-		}
-	}
-
 }
 
 func TestNewUserFailureByPhoneNumberInvalid(t *testing.T) {
@@ -199,8 +105,6 @@ func TestNewUserFailureByPhoneNumberInvalid(t *testing.T) {
 
 	for i, d := range tests {
 		user, err := NewUser(
-			d.username,
-			d.name,
 			d.email,
 			d.phoneNumber,
 			d.passwordHash,
@@ -228,8 +132,6 @@ func TestNewUserFailureByPhoneNumberInvalid(t *testing.T) {
 func TestNewUserFailureByPasswordHashEmpty(t *testing.T) {
 	phoneNumber := "0123456789"
 	user, err := NewUser(
-		"username",
-		"user1",
 		"email@email.email",
 		&phoneNumber,
 		"",

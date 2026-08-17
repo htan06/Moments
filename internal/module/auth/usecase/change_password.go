@@ -37,7 +37,7 @@ func (cu *ChangePasswordUsecase) Execute(ctx context.Context, cmd ChangePassword
 		return errs.NewError(errs.Invalid, nil, domain.UsernameOrPasswordInvalid)
 	}
 
-	if user.Status != domain.UserActive {
+	if user.Status != domain.UserStatusActive {
 		return errs.NewError(errs.AuthenticationFailure, nil, domain.UserNonActiveErr)
 	}
 

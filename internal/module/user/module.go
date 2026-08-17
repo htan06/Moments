@@ -27,19 +27,27 @@ func InitUserModule(
 	updateProfileUsecase := usecase.NewUpdateProfileUsecase(userRepo)
 	changeAvatarUsecase := usecase.NewChangeAvatarUsecase(userRepo, cacheRepo, objectStorage, processImg)
 	searchUC := usecase.NewSearchUC(userRepo)
-	userHandler := NewUserHandler(getProfileUsecase, updateProfileUsecase, changeAvatarUsecase, searchUC)
+	creaProfileUC := usecase.NewCreateProfileUC(userRepo)
+
+	userHandler := NewUserHandler(creaProfileUC, getProfileUsecase, updateProfileUsecase, changeAvatarUsecase, searchUC)
 
 	return &UserModule{
 		userHandler: userHandler,
 	}
 }
 
-func (um *UserModule) RegisterRouter(r *gin.RouterGroup, requireAccessTokenMiddleware gin.HandlerFunc) {
+func (um *UserModule) RegisterRouter(
+	r *gin.RouterGroup,
+	requireAccessToken gin.HandlerFunc,
+	requireActiveUser gin.HandlerFunc,
+	requirePendingUser gin.HandlerFunc,
+) {
 	user := r.Group("/profiles")
 
-	user.GET("/:username", requireAccessTokenMiddleware, um.userHandler.HandlerGetProfile)
-	user.GET("", requireAccessTokenMiddleware, um.userHandler.HandleFindProfiles)
-	user.PATCH("/me", requireAccessTokenMiddleware, um.userHandler.HandlerUpdateProfile)
-	user.GET("/upload-avatar-url", requireAccessTokenMiddleware, um.userHandler.HandlerGetUrlUploadAvatar)
-	user.PATCH("/me/avatar", requireAccessTokenMiddleware, um.userHandler.HandlerCompletedUpload)
+	user.GET("/:username", requireAccessToken, requireActiveUser, um.userHandler.HandlerGetProfile)
+	user.GET("", requireAccessToken, requireActiveUser, um.userHandler.HandleFindProfiles)
+	user.POST("", requireAccessToken, requirePendingUser, um.userHandler.HandlerCreateProfile)
+	user.PATCH("/me", requireAccessToken, requireActiveUser, um.userHandler.HandlerUpdateProfile)
+	user.GET("/upload-avatar-url", requireAccessToken, requireActiveUser, um.userHandler.HandlerGetUrlUploadAvatar)
+	user.PATCH("/me/avatar", requireAccessToken, requireActiveUser, um.userHandler.HandlerCompletedUpload)
 }

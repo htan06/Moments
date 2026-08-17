@@ -1,16 +1,13 @@
 package usecase
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"image"
-	"io"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
 	"github.com/htan06/Moments/internal/config"
 	"github.com/htan06/Moments/internal/module/post/domain"
@@ -29,7 +26,7 @@ type Content struct {
 	Text string          `json:"text"`
 }
 
-type CreatePostCmd struct {
+type UploadPostCmd struct {
 	UpLoadSessionID string
 	AuthorID        int64
 	Contents        []Content
@@ -37,17 +34,17 @@ type CreatePostCmd struct {
 	AspectRatio     domain.AspectRatio
 }
 
-type PrepareUploadPostCmd struct {
+type CreatePostSessionCmd struct {
 	UserID     int64
 	MediaCount int
 }
 
-type PrepareUploadPostRes struct {
+type CreatePostSessionRes struct {
 	SessionID     string
 	PresignedURLs []string
 }
 
-type CreatePostRes struct {
+type UploadPostRes struct {
 	PostSessionID string
 	UploadURLs    []string
 }
@@ -57,6 +54,7 @@ type CreatePostUC struct {
 	userRepo      domain.UserRepository
 	objectStorage domain.ObjectStorage
 	cacheRepo     domain.CacheRepository
+	imgProcessor  domain.ProcessImg
 }
 
 func NewCreatePostUC(
@@ -64,30 +62,32 @@ func NewCreatePostUC(
 	userRepo domain.UserRepository,
 	objectStorage domain.ObjectStorage,
 	cacheRepo domain.CacheRepository,
+	imgProcessor domain.ProcessImg,
 ) *CreatePostUC {
 	return &CreatePostUC{
 		postRepo:      postRepo,
 		userRepo:      userRepo,
 		objectStorage: objectStorage,
 		cacheRepo:     cacheRepo,
+		imgProcessor:  imgProcessor,
 	}
 }
 
-func (cp *CreatePostUC) ExecutePrepareUploadPost(ctx context.Context, cmd PrepareUploadPostCmd) (PrepareUploadPostRes, error) {
-	var uploadPostSession domain.UploadPostSession
+func (cp *CreatePostUC) ExecuteCreatePostSession(ctx context.Context, cmd CreatePostSessionCmd) (CreatePostSessionRes, error) {
+	var uploadPostSession domain.CreatePostSession
 	var presignedURLs []string
 
 	for i := 0; i < cmd.MediaCount; i++ {
 		randID, err := uuid.NewRandom()
 		if err != nil {
-			return PrepareUploadPostRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
+			return CreatePostSessionRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 		}
 
 		mediaID := randID.String()
 
 		presignedUploadURL, err := cp.objectStorage.GetPresignedURLUpload(ctx, string(config.TempBucket), mediaID, time.Minute*5)
 		if err != nil {
-			return PrepareUploadPostRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
+			return CreatePostSessionRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 		}
 
 		presignedURLs = append(presignedURLs, presignedUploadURL)
@@ -96,21 +96,21 @@ func (cp *CreatePostUC) ExecutePrepareUploadPost(ctx context.Context, cmd Prepar
 
 	sessionID, err := uuid.NewRandom()
 	if err != nil {
-		return PrepareUploadPostRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
+		return CreatePostSessionRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 	}
 
 	key := fmt.Sprintf("%d:%s", cmd.UserID, sessionID)
 	if err := cp.cacheRepo.SetUploadPostSession(ctx, key, uploadPostSession); err != nil {
-		return PrepareUploadPostRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
+		return CreatePostSessionRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 	}
 
-	return PrepareUploadPostRes{
+	return CreatePostSessionRes{
 		SessionID:     sessionID.String(),
 		PresignedURLs: presignedURLs,
 	}, nil
 }
 
-func (cp *CreatePostUC) ExecuteCreatePost(ctx context.Context, cmd CreatePostCmd) (*int64, error) {
+func (cp *CreatePostUC) ExecuteUploadPost(ctx context.Context, cmd UploadPostCmd) (*int64, error) {
 	key := fmt.Sprintf("%d:%s", cmd.AuthorID, cmd.UpLoadSessionID)
 
 	uploadPostSession, err := cp.cacheRepo.GetUploadPostSession(ctx, key)
@@ -150,7 +150,7 @@ func (cp *CreatePostUC) ExecuteCreatePost(ctx context.Context, cmd CreatePostCmd
 			}
 
 		case domain.Hashtag:
-			_, val, _ := strings.Cut(n.Text, "#")
+			_, val, _ := strings.Cut(n.Text, "#")	
 			post.Contents = append(post.Contents, domain.Content{
 				Type:  domain.Hashtag,
 				Value: val,
@@ -159,12 +159,8 @@ func (cp *CreatePostUC) ExecuteCreatePost(ctx context.Context, cmd CreatePostCmd
 	}
 
 	firstMediaID := uploadPostSession.MediaIDs[0]
-	firstMedia, err := cp.objectStorage.GetObject(ctx, string(config.TempBucket), firstMediaID)
-	if err != nil {
-		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-	}
 
-	thumbnailID, err := cp.createPostThumbnail(ctx, post.AspectRatio, firstMedia)
+	thumbnailID, err := cp.createPostThumbnail(ctx, domain.Ratio3_4, firstMediaID)
 	if err != nil {
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
@@ -209,36 +205,16 @@ func (cp *CreatePostUC) ExecuteCreatePost(ctx context.Context, cmd CreatePostCmd
 	return postId, nil
 }
 
-func (cp *CreatePostUC) createPostThumbnail(ctx context.Context, postAspectratio domain.AspectRatio, imgSrc io.Reader) (*string, error) {
-	img, err := imaging.Decode(imgSrc)
+func (cp *CreatePostUC) createPostThumbnail(ctx context.Context, postAspectratio domain.AspectRatio, mediaID string) (*string, error) {
+
+	media, err := cp.objectStorage.GetObject(ctx, string(config.TempBucket), mediaID)
 	if err != nil {
 		return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
 	}
 
-	var thumbnail bytes.Buffer
-	if postAspectratio != domain.Ratio3_4 {
-		bounds := img.Bounds()
-		imgWidth := bounds.Dx()
-		imgHeight := bounds.Dy()
-
-		var targetWidth, targetHeight int
-
-		if imgWidth*4 > imgHeight*3 {
-			targetHeight = imgHeight
-			targetWidth = (imgHeight * 3) / 4
-		} else {
-			targetWidth = imgWidth
-			targetHeight = (imgWidth * 4) / 3
-		}
-
-		cropImg := imaging.CropCenter(img, targetWidth, targetHeight)
-		if err := imaging.Encode(&thumbnail, cropImg, imaging.JPEG); err != nil {
-			return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
-		}
-	} else {
-		if err := imaging.Encode(&thumbnail, img, imaging.JPEG); err != nil {
-			return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
-		}
+	thumbnail, size, err := cp.imgProcessor.Resize(media, 300, 400)
+	if err != nil {
+		return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
 	}
 
 	randID, err := uuid.NewRandom()
@@ -247,7 +223,7 @@ func (cp *CreatePostUC) createPostThumbnail(ctx context.Context, postAspectratio
 	}
 
 	thubmnailID := randID.String()
-	if err := cp.objectStorage.PutObject(ctx, string(config.PostBucket), thubmnailID, bytes.NewReader(thumbnail.Bytes())); err != nil {
+	if err := cp.objectStorage.PutObject(ctx, string(config.PostBucket), thubmnailID, thumbnail, int64(size)); err != nil {
 		return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
 	}
 	return &thubmnailID, nil

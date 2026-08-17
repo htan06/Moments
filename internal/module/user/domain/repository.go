@@ -7,6 +7,7 @@ import (
 )
 
 type UserRepository interface {
+	CreateProfile(ctx context.Context, p Profile) error
 	GetAvatarIDByUserID(ctx context.Context, userID int64) (*string, error)
 	UpdateProfile(ctx context.Context, userID int64, fieldUpdates map[string]interface{}) error
 	GetSelfProfileByUsername(ctx context.Context, username string) (ProfileReadModel, error)

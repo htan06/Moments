@@ -18,7 +18,7 @@ type LoginPasswordCmd struct {
 
 type LoginPasswordRes struct {
 	UserID       int64
-	Username     string
+	Status       domain.UserStatus
 	AccessToken  string
 	RefreshToken string
 }
@@ -48,7 +48,7 @@ func (lu *LoginPasswordUsecase) Execute(ctx context.Context, cmd LoginPasswordCm
 		return LoginPasswordRes{}, errs.NewError(errs.Invalid, nil, domain.UsernameOrPasswordInvalid)
 	}
 
-	if user.Status != domain.UserActive {
+	if user.Status == domain.UserStatusInactive {
 		return LoginPasswordRes{}, errs.NewError(errs.AuthenticationFailure, nil, domain.UserNonActiveErr)
 	}
 
@@ -69,7 +69,7 @@ func (lu *LoginPasswordUsecase) Execute(ctx context.Context, cmd LoginPasswordCm
 
 	return LoginPasswordRes{
 		UserID:       user.ID,
-		Username:     user.Username,
+		Status:       user.Status,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil

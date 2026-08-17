@@ -29,13 +29,17 @@ func InitFollowModule(
 	}
 }
 
-func (fm *FollowModule) RegisterRouter(r *gin.RouterGroup, requireAccessTokenMiddleware gin.HandlerFunc) {
+func (fm *FollowModule) RegisterRouter(
+	r *gin.RouterGroup,
+	requireAccessToken gin.HandlerFunc,
+	requireActiveUser gin.HandlerFunc,
+) {
 	users := r.Group("/users/:username/")
-	users.GET("/following", requireAccessTokenMiddleware, fm.followHandler.handlerGetFollowing)
-	users.GET("/followers", requireAccessTokenMiddleware, fm.followHandler.handlerGetFollowers)
+	users.GET("/following", requireAccessToken, requireActiveUser, fm.followHandler.handlerGetFollowing)
+	users.GET("/followers", requireAccessToken, requireActiveUser, fm.followHandler.handlerGetFollowers)
 
 	me := r.Group("/users/me/follows")
-	me.POST("", requireAccessTokenMiddleware, fm.followHandler.handlerCreateFollow)
-	me.DELETE("/:id/remove", requireAccessTokenMiddleware, fm.followHandler.handlerRemoveFollower)
-	me.DELETE("/:id/unfollow", requireAccessTokenMiddleware, fm.followHandler.handlerUnfollow)
+	me.POST("", requireAccessToken, requireActiveUser, fm.followHandler.handlerCreateFollow)
+	me.DELETE("/:id/remove", requireAccessToken, requireActiveUser, fm.followHandler.handlerRemoveFollower)
+	me.DELETE("/:id/unfollow", requireAccessToken, requireActiveUser, fm.followHandler.handlerUnfollow)
 }

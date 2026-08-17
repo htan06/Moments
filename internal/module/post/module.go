@@ -22,8 +22,9 @@ func InitPostModule(
 	userRepo := infra.NewPostgresUserRepository(postgresConn)
 	cacheRepo := infra.NewRedisCacheRepository(redisConn)
 	objectStorage := infra.NewMinIOStorage(storageConn)
+	imgProcessor := infra.NewProcessImg()
 
-	createPostUC := usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo)
+	createPostUC := usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo, imgProcessor)
 	getPostUC := usecase.NewGetPostUC(postRepo)
 	getUserPostsUC := usecase.NewGetUserPostsUC(postRepo)
 	deletePostUC := usecase.NewDeletePostUC(postRepo)
@@ -35,16 +36,20 @@ func InitPostModule(
 	}
 }
 
-func (pm *PostModule) RegisterRouter(r *gin.RouterGroup, requireAccessTokenMiddleware gin.HandlerFunc) {
+func (pm *PostModule) RegisterRouter(
+	r *gin.RouterGroup,
+	requireAccessToken gin.HandlerFunc,
+	requireActiveUser gin.HandlerFunc,
+) {
 	me := r.Group("/users/me/posts")
 
-	me.POST("/prepare-upload", requireAccessTokenMiddleware, pm.postHandler.handlerPrepareUploadPost)
-	me.POST("/", requireAccessTokenMiddleware, pm.postHandler.handlerCreatePost)
-	me.DELETE("/:id", requireAccessTokenMiddleware, pm.postHandler.handlerDeletePost)
+	me.POST("/session", requireAccessToken, requireActiveUser, pm.postHandler.handlerCreatePostSession)
+	me.POST("", requireAccessToken, requireActiveUser, pm.postHandler.handlerUploadPost)
+	me.DELETE("/:id", requireAccessToken, requireActiveUser, pm.postHandler.handlerDeletePost)
 
 	post := r.Group("/posts")
-	post.GET("/:postID", requireAccessTokenMiddleware, pm.postHandler.handlerGetPost)
+	post.GET("/:postID", requireAccessToken, requireActiveUser, pm.postHandler.handlerGetPost)
 
 	user := r.Group("/users/:username/posts")
-	user.GET("", requireAccessTokenMiddleware, pm.postHandler.handlerGetPostsByUsername)
+	user.GET("", requireAccessToken, requireActiveUser, pm.postHandler.handlerGetPostsByUsername)
 }

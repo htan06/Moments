@@ -7,6 +7,7 @@ type CacheNamespace string
 const (
 	UserRegisterPrefix     CacheNamespace = "user-register"
 	UserChangeAvatarPrefix CacheNamespace = "user-change-avatar-session"
+	UserActiveTokenPrefix  CacheNamespace = "user-active-token"
 
 	UserUploadPostPrefix CacheNamespace = "user-upload-post-session"
 )

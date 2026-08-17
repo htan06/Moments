@@ -21,10 +21,14 @@ type ObjectStorage interface {
 	GetPresignedURLUpload(ctx context.Context, bucketName string, objName string, ttl time.Duration) (string, error)
 	GetObject(ctx context.Context, bucketName string, objName string) (io.Reader, error)
 	PromotePostImage(ctx context.Context, objName string) error
-	PutObject(ctx context.Context, bucketName string, objName string, file io.Reader) error
+	PutObject(ctx context.Context, bucketName string, objName string, file io.Reader, size int64) error
 }
 
 type CacheRepository interface {
-	SetUploadPostSession(ctx context.Context, key string, uploadPostSession UploadPostSession) error
-	GetUploadPostSession(ctx context.Context, key string) (UploadPostSession, error)
+	SetUploadPostSession(ctx context.Context, key string, uploadPostSession CreatePostSession) error
+	GetUploadPostSession(ctx context.Context, key string) (CreatePostSession, error)
+}
+
+type ProcessImg interface {
+	Resize(reader io.Reader, width int, height int) (io.Reader, int, error)
 }

@@ -50,7 +50,8 @@ func main() {
 	objectStorageConn := config.GetMinIOConn()
 
 	jwtMiddleware := middleware.NewJWTMiddleware(jwtProvider)
-
+	requireActiveUserMW := middleware.RequireUserStatus("ACTIVE")
+	requirePendingUserMW := middleware.RequireUserStatus("PENDING")
 	router := gin.Default()
 
 	router.Use(middleware.CORSMiddleware())
@@ -58,16 +59,16 @@ func main() {
 	v1 := router.Group("/api/v1")
 
 	authModule := auth.InitAuthModule(postgresConn, redisConn, gmailDialer, mailAddress, jwtConfig)
-	authModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken(), jwtMiddleware.RequireRefreshToken())
+	authModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken(), jwtMiddleware.RequireRefreshToken(), requireActiveUserMW, requirePendingUserMW)
 
 	userModule := user.InitUserModule(postgresConn, redisConn, objectStorageConn)
-	userModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
+	userModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken(), requireActiveUserMW, requirePendingUserMW)
 
 	followModule := follow.InitFollowModule(postgresConn)
-	followModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
+	followModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken(), requireActiveUserMW)
 
 	postModule := post.InitPostModule(postgresConn, redisConn, objectStorageConn)
-	postModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken())
+	postModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken(), requireActiveUserMW)
 
 	router.Run("0.0.0.0:8080")
 }
