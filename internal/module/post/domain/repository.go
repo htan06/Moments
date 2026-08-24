@@ -15,6 +15,9 @@ type PostRepository interface {
 	GetPost(ctx context.Context, postID int64) (PostReadModel, error)
 	GetPostsByUsername(ctx context.Context, username string) ([]PostSummary, error)
 	DeletePostByUserIDAndPostID(ctx context.Context, userID int64, postID int64) error
+
+	CreateLikePost(ctx context.Context, userID int64, postID int64) error
+	DeleteLikePost(ctx context.Context, userID int64, postID int64) error
 }
 
 type ObjectStorage interface {
@@ -25,8 +28,10 @@ type ObjectStorage interface {
 }
 
 type CacheRepository interface {
-	SetUploadPostSession(ctx context.Context, key string, uploadPostSession CreatePostSession) error
+	SetUploadPostSession(ctx context.Context, key string, createPostSession *CreatePostSession) error
 	GetUploadPostSession(ctx context.Context, key string) (CreatePostSession, error)
+	IncPostLikes(ctx context.Context, key string) error
+	DecPostLikes(ctx context.Context, key string) error
 }
 
 type ProcessImg interface {

@@ -29,7 +29,10 @@ func InitPostModule(
 	getUserPostsUC := usecase.NewGetUserPostsUC(postRepo)
 	deletePostUC := usecase.NewDeletePostUC(postRepo)
 
-	handler := NewPostHandler(*createPostUC, *getPostUC, *getUserPostsUC, *deletePostUC)
+	likePostUC := usecase.NewLikePostUC(postRepo, cacheRepo)
+	unlikePostUC := usecase.NewUnlikePostUC(postRepo)
+
+	handler := NewPostHandler(*createPostUC, *getPostUC, *getUserPostsUC, *deletePostUC, *likePostUC, *unlikePostUC)
 
 	return &PostModule{
 		postHandler: handler,
@@ -44,11 +47,14 @@ func (pm *PostModule) RegisterRouter(
 	me := r.Group("/users/me/posts")
 
 	me.POST("/session", requireAccessToken, requireActiveUser, pm.postHandler.handlerCreatePostSession)
+	me.POST("/session/urls", requireAccessToken, requireActiveUser, pm.postHandler.handlerRequestUploadURLs)
 	me.POST("", requireAccessToken, requireActiveUser, pm.postHandler.handlerUploadPost)
 	me.DELETE("/:id", requireAccessToken, requireActiveUser, pm.postHandler.handlerDeletePost)
 
-	post := r.Group("/posts")
-	post.GET("/:postID", requireAccessToken, requireActiveUser, pm.postHandler.handlerGetPost)
+	post := r.Group("/posts/:postID")
+	post.GET("", requireAccessToken, requireActiveUser, pm.postHandler.handlerGetPost)
+	post.POST("/likes", requireAccessToken, requireActiveUser, pm.postHandler.handlerLikePost)
+	post.DELETE("/likes", requireAccessToken, requireActiveUser, pm.postHandler.handlerUnlikePost)
 
 	user := r.Group("/users/:username/posts")
 	user.GET("", requireAccessToken, requireActiveUser, pm.postHandler.handlerGetPostsByUsername)

@@ -22,6 +22,7 @@ const (
 
 type User struct {
 	ID           int64
+	UserName     *string
 	Email        string
 	PhoneNumber  *string
 	PasswordHash string

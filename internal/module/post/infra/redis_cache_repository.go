@@ -11,17 +11,22 @@ import (
 )
 
 type RedisCacheRepository struct {
-	conn *redis.Client
+	conn     *redis.Client
+	// postRepo domain.PostRepository
 }
 
-func NewRedisCacheRepository(conn *redis.Client) *RedisCacheRepository {
+func NewRedisCacheRepository(
+	conn *redis.Client,
+	// postRepo domain.PostRepository,
+) *RedisCacheRepository {
 	return &RedisCacheRepository{
-		conn: conn,
+		conn:     conn,
+		// postRepo: postRepo,
 	}
 }
 
-func (rc *RedisCacheRepository) SetUploadPostSession(ctx context.Context, key string, uploadPostSession domain.CreatePostSession) error {
-	data, err := json.Marshal(uploadPostSession)
+func (rc *RedisCacheRepository) SetUploadPostSession(ctx context.Context, key string, createPostSession *domain.CreatePostSession) error {
+	data, err := json.Marshal(*createPostSession)
 	if err != nil {
 		return fmt.Errorf("RedisCacheRepository.SetUploadPostSession: %w", err)
 	}
@@ -45,4 +50,14 @@ func (rc *RedisCacheRepository) GetUploadPostSession(ctx context.Context, key st
 	}
 
 	return uploadPostSession, nil
+}
+
+func (rc *RedisCacheRepository) IncPostLikes(ctx context.Context, key string) error {
+	// if _, err := rc.conn.Incr(ctx, key).Result(); err != nil && err == redis.Nil {
+
+	// }
+	return nil
+}
+func (rc *RedisCacheRepository) DecPostLikes(ctx context.Context, key string) error {
+	return nil
 }

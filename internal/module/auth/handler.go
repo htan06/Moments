@@ -10,7 +10,6 @@ import (
 )
 
 type AuthHandler struct {
-	getCurrentUserUC         *usecase.GetCurrentUserUC
 	activeUserUC             *usecase.ActiveUserUC
 	registerUsecase          *usecase.RegisterUsecase
 	verifyRegisterOTPUsecase *usecase.VerifyRegisterOTPUsecase
@@ -21,7 +20,6 @@ type AuthHandler struct {
 }
 
 func NewAuthHandler(
-	getCurrentUserUC *usecase.GetCurrentUserUC,
 	activeUserUC *usecase.ActiveUserUC,
 	registerUsecase *usecase.RegisterUsecase,
 	verifyRegisterOTPUsecase *usecase.VerifyRegisterOTPUsecase,
@@ -31,7 +29,6 @@ func NewAuthHandler(
 	jwtConfig *config.JWTConfig,
 ) *AuthHandler {
 	return &AuthHandler{
-		getCurrentUserUC:         getCurrentUserUC,
 		activeUserUC:             activeUserUC,
 		registerUsecase:          registerUsecase,
 		verifyRegisterOTPUsecase: verifyRegisterOTPUsecase,
@@ -75,13 +72,21 @@ func (ah *AuthHandler) handleActiveUserUC(c *gin.Context) {
 		return
 	}
 
-	accessToken, err := ah.activeUserUC.Execute(ctx, currentUser.ID())
+	res, err := ah.activeUserUC.Execute(ctx, currentUser.ID())
 	if err != nil {
 		api.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
+	c.JSON(http.StatusOK, gin.H{
+		"user_id":     res.UserID,
+		"user_status": res.Status,
+		"username":    res.Username,
+		"tokens": gin.H{
+			"access_token":  res.AccessToken,
+			"refresh_token": res.RefreshToken,
+		},
+	})
 }
 
 func (ah *AuthHandler) handleVerifyRegisterOTPUsecase(c *gin.Context) {
@@ -134,6 +139,7 @@ func (ah *AuthHandler) handleLoginPasswordUsecase(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     res.UserID,
 		"user_status": res.Status,
+		"username":    res.Username,
 		"tokens": gin.H{
 			"access_token":  res.AccessToken,
 			"refresh_token": res.RefreshToken,
@@ -188,22 +194,4 @@ func (ah *AuthHandler) handleRefreshTokenUsecase(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
-}
-
-func (ah *AuthHandler) handleGetCurrentUser(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	currentUser, ok := api.GetCurrentUser(c)
-	if !ok {
-		c.Status(http.StatusUnauthorized)
-		return
-	}
-
-	ud, err := ah.getCurrentUserUC.Execute(ctx, currentUser.ID())
-	if err != nil {
-		api.HandleError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, ud)
 }

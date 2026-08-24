@@ -37,7 +37,7 @@ func (jwtm *JWTMiddleware) RequireAccessToken() gin.HandlerFunc {
 			return
 		}
 
-		currentUser := api.NewCurrentUser(claim.UserID, claim.Subject, string(claim.UserStatus))
+		currentUser := api.NewCurrentUser(claim.UserID, claim.Subject, string(claim.UserStatus), claim.Username)
 
 		c.Set("currentUser", currentUser)
 	}
@@ -61,7 +61,7 @@ func (jwtm *JWTMiddleware) RequireRefreshToken() gin.HandlerFunc {
 			return
 		}
 
-		currentUser := api.NewCurrentUser(claim.UserID, claim.Subject, string(claim.UserStatus))
+		currentUser := api.NewCurrentUser(claim.UserID, claim.Subject, string(claim.UserStatus), "")
 
 		c.Set("currentUser", currentUser)
 	}

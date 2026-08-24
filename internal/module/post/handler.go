@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/htan06/Moments/internal/api"
 	"github.com/htan06/Moments/internal/module/post/domain"
 	"github.com/htan06/Moments/internal/module/post/usecase"
@@ -15,6 +16,9 @@ type PostHandler struct {
 	getPostUC      usecase.GetPostUC
 	getUserPostsUC usecase.GetUserPostsUC
 	deletePostUC   usecase.DeletePostUC
+
+	likePostUC   usecase.LikePostUC
+	unlikePostUC usecase.UnlikePostUC
 }
 
 func NewPostHandler(
@@ -22,12 +26,16 @@ func NewPostHandler(
 	getPostUC usecase.GetPostUC,
 	getUserPostsUC usecase.GetUserPostsUC,
 	deletePostUC usecase.DeletePostUC,
+	likePostUC usecase.LikePostUC,
+	unlikePostUC usecase.UnlikePostUC,
 ) *PostHandler {
 	return &PostHandler{
 		createPostUC:   createPostUC,
 		getPostUC:      getPostUC,
 		getUserPostsUC: getUserPostsUC,
 		deletePostUC:   deletePostUC,
+		likePostUC:     likePostUC,
+		unlikePostUC:   unlikePostUC,
 	}
 }
 
@@ -41,10 +49,11 @@ func (ph *PostHandler) handlerUploadPost(c *gin.Context) {
 	}
 
 	var req struct {
-		UploadSessionID string             `json:"session_id"`
-		Contents        []usecase.Content  `json:"contents"`
-		Visibility      domain.Visibility  `json:"visibility"`
-		AspectRatio     domain.AspectRatio `json:"aspect_ratio"`
+		UploadSessionID string            `json:"session_id"`
+		Contents        []domain.Content  `json:"contents"`
+		Visibility      domain.Visibility `json:"visibility"`
+		AspectRatio     string            `json:"aspect_ratio"`
+		MediaIds        uuid.UUIDs        `json:"media_ids"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,6 +67,7 @@ func (ph *PostHandler) handlerUploadPost(c *gin.Context) {
 		Contents:        req.Contents,
 		Visibility:      req.Visibility,
 		AspectRatio:     req.AspectRatio,
+		MediaIDs:        req.MediaIds,
 	}
 
 	postID, err := ph.createPostUC.ExecuteUploadPost(ctx, cmd)
@@ -99,8 +109,42 @@ func (ph *PostHandler) handlerCreatePostSession(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"session_id":  res.SessionID,
-		"upload_urls": res.PresignedURLs,
+		"session_id":    res.SessionID,
+		"media_uploads": res.MediaUploads,
+	})
+}
+
+func (ph *PostHandler) handlerRequestUploadURLs(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var req struct {
+		SessionID  uuid.UUID `json:"session_id"`
+		MediaCount int       `json:"media_count"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	currentUser, exists := api.GetCurrentUser(c)
+	if !exists {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	cmd := usecase.RequestUploadURLs{
+		SessionID:  req.SessionID,
+		AuthorID:   currentUser.ID(),
+		MediaCount: req.MediaCount,
+	}
+
+	mediaUploads, err := ph.createPostUC.ExecuteRequestUploadURLs(ctx, cmd)
+	if err != nil {
+		api.HandleError(c, err)
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"media_uploads": mediaUploads,
 	})
 }
 
@@ -166,4 +210,58 @@ func (ph *PostHandler) handlerGetPostsByUsername(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, posts)
+}
+
+func (ph *PostHandler) handlerLikePost(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	postID, err := strconv.ParseInt(c.Param("postID"), 10, 64)
+	if err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	currentUser, exists := api.GetCurrentUser(c)
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	cmd := usecase.LikePostCmd{
+		UserID: currentUser.ID(),
+		PostID: postID,
+	}
+	if err := ph.likePostUC.Execute(ctx, cmd); err != nil {
+		api.HandleError(c, err)
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (ph *PostHandler) handlerUnlikePost(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	postID, err := strconv.ParseInt(c.Param("postID"), 10, 64)
+	if err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	currentUser, exists := api.GetCurrentUser(c)
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	cmd := usecase.UnlikePostCmd{
+		UserID: currentUser.ID(),
+		PostID: postID,
+	}
+	if err := ph.unlikePostUC.Execute(ctx, cmd); err != nil {
+		api.HandleError(c, err)
+		return
+	}
+
+	c.Status(http.StatusOK)
 }

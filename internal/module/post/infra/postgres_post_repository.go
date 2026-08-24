@@ -31,16 +31,18 @@ func (pr *PostgresPostRepository) CreatePost(ctx context.Context, post domain.Po
 	insertPost := `INSERT INTO content.posts (author_id, content, visibility, thumbnail_id, media_count, aspect_ratio, like_count, comment_count)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
 
-	postContent, err := json.Marshal(post.Contents)
+	postContent, err := json.Marshal(post.Contents())
 	if err != nil {
 		return nil, fmt.Errorf("PostgresPostRepository.Create: %w", err)
 	}
+
+	fmt.Printf("Log: %s\n", post.AspectRatio().String())
 
 	var postID int64
 	if err := tx.QueryRow(
 		ctx,
 		insertPost,
-		post.AuthorID, postContent, post.Visibility, post.ThumbnailID, post.MediaCount, post.AspectRatio, post.LikeCount, post.CommentCount).
+		post.AuthorID(), postContent, post.Visibility(), post.ThumbnailID(), post.MediaCount(), post.AspectRatio().String(), post.LikeCount(), post.CommentCount()).
 		Scan(&postID); err != nil {
 		return nil, fmt.Errorf("PostgresPostRepository.Create: %w", err)
 	}
@@ -50,15 +52,19 @@ func (pr *PostgresPostRepository) CreatePost(ctx context.Context, post domain.Po
 
 	insertMention := `INSERT INTO content.post_mentions (post_id, user_id) VALUES ($1, $2);`
 
+	increPostCounts := `UPDATE profile.users SET posts_count = posts_count + 1 WHERE user_id = $1;`
+
 	batch := &pgx.Batch{}
 
-	for _, m := range post.Medias {
+	for _, m := range post.Medias() {
 		batch.Queue(insertMedia, postID, m.Type, m.MediaID, m.DisplayOrder, m.Width, m.Height)
 	}
 
-	for _, userID := range post.Mentions {
+	for _, userID := range post.Mentions() {
 		batch.Queue(insertMention, postID, userID)
 	}
+
+	batch.Queue(increPostCounts, post.AuthorID())
 
 	if err := tx.SendBatch(ctx, batch).Close(); err != nil {
 		return nil, fmt.Errorf("PostgresPostRepository.Create: %w", err)
@@ -187,19 +193,19 @@ func (pr *PostgresPostRepository) enrichContent(content []domain.Content, mentio
 	for i := range content {
 		switch content[i].Type {
 		case domain.Mention:
-			uID, err := strconv.ParseInt(content[i].Value, 10, 64)
+			uID, err := strconv.ParseInt(content[i].Text, 10, 64)
 			if err != nil {
 				return fmt.Errorf("PostgresPostRepository.enrichContent: %w", err)
 			}
 
 			username, ok := mentions[uID]
 			if !ok {
-				content[i].Value = "@deleted"
+				content[i].Text = "@deleted"
 				continue
 			}
-			content[i].Value = "@" + username
+			content[i].Text = "@" + username
 		case domain.Hashtag:
-			content[i].Value = "#" + content[i].Value
+			content[i].Text = "#" + content[i].Text
 		}
 	}
 	return nil
@@ -223,7 +229,8 @@ func (pr *PostgresPostRepository) GetPostsByUsername(ctx context.Context, userna
 					like_count,
 					comment_count
 				FROM content.posts
-				WHERE author_id = (SELECT user_id FROM profile.users WHERE username = $1);`
+				WHERE author_id = (SELECT user_id FROM profile.users WHERE username = $1) 
+				ORDER BY created_at DESC;`
 
 	rows, err := pr.conn.Query(ctx, postQuery, username)
 	if err != nil {
@@ -236,4 +243,28 @@ func (pr *PostgresPostRepository) GetPostsByUsername(ctx context.Context, userna
 		return []domain.PostSummary{}, fmt.Errorf("GetPostByUsername.Get: %w", err)
 	}
 	return posts, nil
+}
+
+func (p *PostgresPostRepository) CreateLikePost(ctx context.Context, userID int64, postID int64) error {
+	qry := `INSERT INTO content.post_likes (user_id, post_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;`
+	tag, err := p.conn.Exec(ctx, qry, userID, postID)
+	if err != nil {
+		return fmt.Errorf("PostgresPostRepository.CreateLikePost: %w", err)
+	}
+	if tag.RowsAffected() != 1 {
+		return fmt.Errorf("PostgresPostRepository.CreateLikePost: %s", "Error insert like post")
+	}
+	return nil
+}
+
+func (p *PostgresPostRepository) DeleteLikePost(ctx context.Context, userID int64, postID int64) error {
+	qry := `DELETE FROM content.post_likes WHERE user_id = $1 AND post_id = $2;`
+	tag, err := p.conn.Exec(ctx, qry, userID, postID)
+	if err != nil {
+		return fmt.Errorf("PostgresPostRepository.DeleteLikePost: %w", err)
+	}
+	if tag.RowsAffected() != 1 {
+		return fmt.Errorf("PostgresPostRepository.DeleteLikePost: %s", "Error delete like post")
+	}
+	return nil
 }

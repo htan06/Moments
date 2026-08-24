@@ -29,7 +29,6 @@ func InitAuthModule(
 	otpProvider := security.NewOTPProvider()
 	jwtProvider := security.NewJWTProvider(jwtConfig)
 
-	getCurrentUserUC := usecase.NewGetCurrentUserUC(userRepo)
 	activeUserUC := usecase.NewActiveUserUC(userRepo, jwtProvider)
 	registerUsecase := usecase.NewRegisterUsecase(otpProvider, cacheRepository, emailOTPSender)
 	verifyRegisterOTP := usecase.NewVerifyRegisterOTPUsecase(userRepo, cacheRepository, jwtProvider)
@@ -38,7 +37,6 @@ func InitAuthModule(
 	refreshTokenUsecase := usecase.NewRefreshTokenUsecase(userRepo, jwtProvider)
 
 	authHandler := NewAuthHandler(
-		getCurrentUserUC,
 		activeUserUC,
 		registerUsecase,
 		verifyRegisterOTP,
@@ -61,7 +59,7 @@ func (am *AuthModule) RegisterRouter(
 ) {
 	auth := r.Group("/auth")
 
-	auth.GET("/me", requireAccessToken, requireUserActive, am.authHandler.handleGetCurrentUser)
+	// auth.GET("/me", requireAccessToken, requireUserActive, am.authHandler.handleGetCurrentUser)
 	auth.POST("/register", am.authHandler.handleRegisterUsecase)
 	auth.PATCH("/active", requireAccessToken, requireUserPending, am.authHandler.handleActiveUserUC)
 	auth.POST("/register/verify-otp", am.authHandler.handleVerifyRegisterOTPUsecase)

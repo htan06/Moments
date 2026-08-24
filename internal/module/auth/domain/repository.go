@@ -12,7 +12,6 @@ type UserRepository interface {
 	UpdateLastLogin(ctx context.Context, user User) error
 	UpdatePassword(ctx context.Context, user User) error
 	UpdateStatusActiveIfExistsProfile(ctx context.Context, userID int64) error
-	GetUserDetailByID(ctx context.Context, userID int64) (UserDetail, error)
 }
 
 type CacheRepository interface {

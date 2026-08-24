@@ -11,4 +11,7 @@ const (
 
 	UserNotFound errs.ErrorCode = "USER_NOT_FOUND"
 	MediaIDEmpty errs.ErrorCode = ""
+
+	MediaCountInvalid  errs.ErrorCode = "MEDIA_COUNT_INVALID"
+	AspectRatioInvalid errs.ErrorCode = "ASPECT_RATIO_INVALID"
 )

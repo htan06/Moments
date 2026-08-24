@@ -22,13 +22,14 @@ func NewPostgresUserRepository(conn *pgxpool.Pool) *PostgresUserRepository {
 }
 
 func (pur *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (domain.User, error) {
-	query := `SELECT id, email, phone_number, password_hash, status 
-				FROM identity.users
-				WHERE email = $1;`
+	query := `SELECT iu.id, pu.username, iu.email, iu.phone_number, iu.password_hash, iu.status 
+				FROM identity.users iu
+				LEFT JOIN profile.users pu ON iu.id = pu.user_id
+				WHERE iu.email = $1;`
 
 	var user domain.User
 	if err := pur.conn.QueryRow(ctx, query, email).
-		Scan(&user.ID, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.Status); err != nil {
+		Scan(&user.ID, &user.UserName, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.Status); err != nil {
 
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.User{}, errs.NewError(errs.NotFound, err, domain.UserNotFound)
@@ -40,13 +41,14 @@ func (pur *PostgresUserRepository) GetByEmail(ctx context.Context, email string)
 }
 
 func (pur *PostgresUserRepository) GetByID(ctx context.Context, id int64) (domain.User, error) {
-	query := `SELECT id, email, phone_number, password_hash, status 
-				FROM identity.users
+	query := `SELECT iu.id, pu.username, iu.email, iu.phone_number, iu.password_hash, iu.status 
+				FROM identity.users iu
+				LEFT JOIN profile.users pu ON iu.id = pu.user_id
 				WHERE id = $1;`
 
 	var user domain.User
 	if err := pur.conn.QueryRow(ctx, query, id).
-		Scan(&user.ID, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.Status); err != nil {
+		Scan(&user.ID, &user.UserName, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.Status); err != nil {
 
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.User{}, errs.NewError(errs.NotFound, err, domain.UserNotFound)
@@ -116,18 +118,4 @@ func (pur *PostgresUserRepository) UpdateStatusActiveIfExistsProfile(ctx context
 		return fmt.Errorf("PostgresUserRepository.UpdateStatusActiveIfExistsProfile: update iedntity.user.status failure")
 	}
 	return nil
-}
-
-func (pur *PostgresUserRepository) GetUserDetailByID(ctx context.Context, userID int64) (domain.UserDetail, error) {
-	query := `SELECT pu.username, iu.email, iu.phone_number, iu.last_login_at
-				FROM identity.users iu
-				JOIN profile.users pu
-					ON iu.id = pu.user_id
-				WHERE id = $1;`
-
-	var ud domain.UserDetail
-	if err := pur.conn.QueryRow(ctx, query, userID).Scan(&ud.Username, &ud.Email, &ud.PhoneNumber, &ud.LastLoginAt); err != nil {
-		return domain.UserDetail{}, fmt.Errorf("PostgresUserRepository.GetUserDetailByID: %w", err)
-	}
-	return ud, nil
 }

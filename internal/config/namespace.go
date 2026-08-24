@@ -10,6 +10,8 @@ const (
 	UserActiveTokenPrefix  CacheNamespace = "user-active-token"
 
 	UserUploadPostPrefix CacheNamespace = "user-upload-post-session"
+
+	PostLikeCountPrefix CacheNamespace = "post-likes-count"
 )
 
 type StorageNamespace string

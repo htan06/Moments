@@ -19,6 +19,7 @@ type LoginPasswordCmd struct {
 type LoginPasswordRes struct {
 	UserID       int64
 	Status       domain.UserStatus
+	Username     *string
 	AccessToken  string
 	RefreshToken string
 }
@@ -70,6 +71,7 @@ func (lu *LoginPasswordUsecase) Execute(ctx context.Context, cmd LoginPasswordCm
 	return LoginPasswordRes{
 		UserID:       user.ID,
 		Status:       user.Status,
+		Username:     user.UserName,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil

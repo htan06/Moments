@@ -1,6 +1,8 @@
 package domain
 
-import "time"
+import (
+	"time"
+)
 
 type MediaReadModel struct {
 	ID           int64     `json:"id" db:"id"`
@@ -25,7 +27,7 @@ type PostReadModel struct {
 	ThumbnailID             string           `json:"thumbnail_url" db:"thumbnail_id"`
 	MediaCount              int              `json:"media_count" db:"media_count"`
 	Medias                  []MediaReadModel `json:"medias" db:"-"`
-	AspectRatio             AspectRatio      `json:"aspect_ratio" db:"aspect_ratio"`
+	AspectRatio             string           `json:"aspect_ratio" db:"aspect_ratio"`
 	LikeCount               int              `json:"like_count" db:"like_count"`
 	CommentCount            int              `json:"comment_count" db:"comment_count"`
 	CreatedAt               time.Time        `json:"created_at" db:"created_at"`

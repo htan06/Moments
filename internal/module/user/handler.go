@@ -82,7 +82,7 @@ func (uh *UserHandler) HandlerGetProfile(c *gin.Context) {
 
 	qry := usecase.GetProfileQry{
 		CurrentUserID: currentuser.ID(),
-		// CurrentUsername: currentuser.Username(),
+		CurrentUsername: currentuser.Username(),
 		TargetUsername: username,
 	}
 	profile, err := uh.getProfileUsecase.Execute(ctx, qry)
