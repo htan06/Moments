@@ -23,9 +23,10 @@ func InitPostModule(
 	cacheRepo := infra.NewRedisCacheRepository(redisConn)
 	objectStorage := infra.NewMinIOStorage(storageConn)
 	imgProcessor := infra.NewGoVipsProcessImg()
+	videoProcessor := infra.NewFfmpegProcessVideo()
 	postProducer := infra.NewKafkaPostProducer()
 
-	createPostUC := usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo, imgProcessor, postProducer)
+	createPostUC := usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo, imgProcessor, videoProcessor, postProducer)
 	getPostUC := usecase.NewGetPostUC(postRepo)
 	getUserPostsUC := usecase.NewGetUserPostsUC(postRepo)
 	deletePostUC := usecase.NewDeletePostUC(postRepo, postProducer)

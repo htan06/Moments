@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/htan06/Moments/internal/config"
@@ -18,6 +19,15 @@ func NewMinIOStorage(conn *minio.Client) *MinIOStorage {
 	return &MinIOStorage{
 		conn: conn,
 	}
+}
+
+func (ms *MinIOStorage) GetPresignedURLDownload(ctx context.Context, bucketName string, objName string, ttl time.Duration) (string, error) {
+	url, err := ms.conn.PresignedGetObject(ctx, bucketName, objName, ttl, url.Values{})
+	if err != nil {
+		return "", fmt.Errorf("MinIOStorage.GetPresignedURLUpload: %w", err)
+	}
+
+	return url.String(), nil
 }
 
 func (ms *MinIOStorage) GetPresignedURLUpload(ctx context.Context, bucketName string, objName string, ttl time.Duration) (string, error) {
@@ -63,6 +73,14 @@ func (ms *MinIOStorage) PromotePostImage(ctx context.Context, objName string) er
 
 func (ms *MinIOStorage) PutObject(ctx context.Context, bucketName string, objName string, file io.Reader, size int64) error {
 	_, err := ms.conn.PutObject(ctx, bucketName, objName, file, size, minio.PutObjectOptions{ContentType: "image/jpeg"})
+	if err != nil {
+		return fmt.Errorf("MinIOStorage.PutObject: %w", err)
+	}
+	return nil
+}
+
+func (ms *MinIOStorage) FPutObject(ctx context.Context, bucketName string, objName string, filePath string, contentType string) error {
+	_, err := ms.conn.FPutObject(ctx, bucketName, objName, filePath, minio.PutObjectOptions{})
 	if err != nil {
 		return fmt.Errorf("MinIOStorage.PutObject: %w", err)
 	}

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/htan06/Moments/internal/errs"
 )
 
@@ -109,7 +108,7 @@ type Content struct {
 
 type Media struct {
 	ID           int64
-	MediaID      uuid.UUID
+	MediaID      string
 	Type         MediaType
 	DisplayOrder int
 	Width        int
