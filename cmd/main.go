@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -61,7 +62,7 @@ func main() {
 	authModule := auth.InitAuthModule(postgresConn, redisConn, gmailDialer, mailAddress, jwtConfig)
 	authModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken(), jwtMiddleware.RequireRefreshToken(), requireActiveUserMW, requirePendingUserMW)
 
-	userModule := user.InitUserModule(postgresConn, redisConn, objectStorageConn)
+	userModule := user.InitUserModule(context.Background(), postgresConn, redisConn, objectStorageConn)
 	userModule.RegisterRouter(v1, jwtMiddleware.RequireAccessToken(), requireActiveUserMW, requirePendingUserMW)
 
 	followModule := follow.InitFollowModule(postgresConn)

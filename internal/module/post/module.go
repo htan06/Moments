@@ -22,12 +22,13 @@ func InitPostModule(
 	userRepo := infra.NewPostgresUserRepository(postgresConn)
 	cacheRepo := infra.NewRedisCacheRepository(redisConn)
 	objectStorage := infra.NewMinIOStorage(storageConn)
-	imgProcessor := infra.NewProcessImg()
+	imgProcessor := infra.NewGoVipsProcessImg()
+	postProducer := infra.NewKafkaPostProducer()
 
-	createPostUC := usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo, imgProcessor)
+	createPostUC := usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo, imgProcessor, postProducer)
 	getPostUC := usecase.NewGetPostUC(postRepo)
 	getUserPostsUC := usecase.NewGetUserPostsUC(postRepo)
-	deletePostUC := usecase.NewDeletePostUC(postRepo)
+	deletePostUC := usecase.NewDeletePostUC(postRepo, postProducer)
 
 	likePostUC := usecase.NewLikePostUC(postRepo, cacheRepo)
 	unlikePostUC := usecase.NewUnlikePostUC(postRepo)

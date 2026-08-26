@@ -29,7 +29,7 @@ func (ms *MinIOStorage) GetPresignedURLUpload(ctx context.Context, bucketName st
 	return url.String(), nil
 }
 
-func (ms *MinIOStorage) GetObject(ctx context.Context, bucketName string, objName string) (io.Reader, error) {
+func (ms *MinIOStorage) GetObject(ctx context.Context, bucketName string, objName string) (io.ReadSeekCloser, error) {
 	obj, err := ms.conn.GetObject(ctx, bucketName, objName, minio.GetObjectOptions{})
 
 	if err != nil {

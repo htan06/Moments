@@ -159,3 +159,83 @@ func (pur *PostgresUserRepository) FindProfilesByUsername(ctx context.Context, u
 	profileSummaries, err := pgx.CollectRows(rows, pgx.RowToStructByName[domain.ProfileSummaryReadModel])
 	return profileSummaries, nil
 }
+
+func (p *PostgresUserRepository) IncPostCount(ctx context.Context, userID int64) error {
+	qry := `UPDATE profile.users SET posts_count = posts_count + 1 WHERE user_id = $1;`
+
+	tag, err := p.conn.Exec(ctx, qry, userID)
+	if err != nil {
+		return fmt.Errorf("PostgresUserRepository.IncPostCount: %w", err)
+	}
+
+	if tag.RowsAffected() != 1 {
+		return fmt.Errorf("PostgresUserRepository.IncPostCount: %w", err)
+	}
+
+	return nil
+}
+
+func (p *PostgresUserRepository) DecPostCount(ctx context.Context, userID int64) error {
+	qry := `UPDATE profile.users SET posts_count = posts_count - 1 WHERE user_id = $1;`
+
+	tag, err := p.conn.Exec(ctx, qry, userID)
+	if err != nil {
+		return fmt.Errorf("PostgresUserRepository.DeccPostCount: %w", err)
+	}
+
+	if tag.RowsAffected() != 1 {
+		return fmt.Errorf("PostgresUserRepository.DecPostCount: %w", err)
+	}
+
+	return nil
+}
+
+func (p *PostgresUserRepository) IncFollowCount(ctx context.Context, followerID int64, followingID int64) error {
+	tx, err := p.conn.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("PostgresUserRepository.IncFollowCount: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	incFollowing := `UPDATE profile.users SET following_count = following_count + 1 WHERE user_id = $1;`
+	incFollowers := `UPDATE profile.users SET followers_count = followers_count + 1 WHERE user_id = $1;`
+
+	batch := pgx.Batch{}
+	batch.Queue(incFollowing, followerID)
+	batch.Queue(incFollowers, followingID)
+
+	if err := tx.SendBatch(ctx, &batch).Close(); err != nil {
+		return fmt.Errorf("PostgresUserRepository.IncFollowCount: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("PostgresUserRepository.IncFollowCount: %w", err)
+	}
+
+	return nil
+}
+
+func (p *PostgresUserRepository) DecFollowCount(ctx context.Context, followerID int64, followingID int64) error {
+	tx, err := p.conn.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("PostgresUserRepository.DecFollowCount: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	decFollowing := `UPDATE profile.users SET following_count = following_count - 1 WHERE user_id = $1;`
+	decFollowers := `UPDATE profile.users SET followers_count = followers_count - 1 WHERE user_id = $1;`
+
+	batch := pgx.Batch{}
+	batch.Queue(decFollowing, followerID)
+	batch.Queue(decFollowers, followingID)
+
+	if err := tx.SendBatch(ctx, &batch).Close(); err != nil {
+		return fmt.Errorf("PostgresUserRepository.DecFollowCount: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("PostgresUserRepository.DecFollowCount: %w", err)
+	}
+	
+	return nil
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -62,6 +63,7 @@ type CreatePostUC struct {
 	objectStorage domain.ObjectStorage
 	cacheRepo     domain.CacheRepository
 	imgProcessor  domain.ProcessImg
+	postProducer  domain.PostProducer
 }
 
 func NewCreatePostUC(
@@ -70,6 +72,7 @@ func NewCreatePostUC(
 	objectStorage domain.ObjectStorage,
 	cacheRepo domain.CacheRepository,
 	imgProcessor domain.ProcessImg,
+	postProducer domain.PostProducer,
 ) *CreatePostUC {
 	return &CreatePostUC{
 		postRepo:      postRepo,
@@ -77,13 +80,12 @@ func NewCreatePostUC(
 		objectStorage: objectStorage,
 		cacheRepo:     cacheRepo,
 		imgProcessor:  imgProcessor,
+		postProducer:  postProducer,
 	}
 }
 
 func (cp *CreatePostUC) ExecuteRequestUploadURLs(ctx context.Context, cmd RequestUploadURLs) ([]MediaUpload, error) {
-	key := fmt.Sprintf("%d:%s", cmd.AuthorID, cmd.SessionID)
-
-	createPostSession, err := cp.cacheRepo.GetUploadPostSession(ctx, key)
+	createPostSession, err := cp.cacheRepo.GetUploadPostSession(ctx, cmd.AuthorID, cmd.SessionID.String())
 	if err != nil {
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
@@ -102,7 +104,7 @@ func (cp *CreatePostUC) ExecuteRequestUploadURLs(ctx context.Context, cmd Reques
 		mediaUploads = append(mediaUploads, MediaUpload{MediaID: m.String(), UploadURL: url})
 	}
 
-	if err := cp.cacheRepo.SetUploadPostSession(ctx, key, &createPostSession); err != nil {
+	if err := cp.cacheRepo.SetUploadPostSession(ctx, cmd.AuthorID, cmd.SessionID.String(), &createPostSession); err != nil {
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
 	return mediaUploads, nil
@@ -125,8 +127,7 @@ func (cp *CreatePostUC) ExecuteCreatePostSession(ctx context.Context, cmd Create
 
 	}
 
-	key := fmt.Sprintf("%d:%s", createPostSession.UserID, createPostSession.SessionID)
-	if err := cp.cacheRepo.SetUploadPostSession(ctx, key, createPostSession); err != nil {
+	if err := cp.cacheRepo.SetUploadPostSession(ctx, createPostSession.UserID, createPostSession.SessionID.String(), createPostSession); err != nil {
 		return CreatePostSessionRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 	}
 
@@ -137,9 +138,7 @@ func (cp *CreatePostUC) ExecuteCreatePostSession(ctx context.Context, cmd Create
 }
 
 func (cp *CreatePostUC) ExecuteUploadPost(ctx context.Context, cmd UploadPostCmd) (*int64, error) {
-	key := fmt.Sprintf("%d:%s", cmd.AuthorID, cmd.UpLoadSessionID)
-
-	createPostSession, err := cp.cacheRepo.GetUploadPostSession(ctx, key)
+	createPostSession, err := cp.cacheRepo.GetUploadPostSession(ctx, cmd.AuthorID, cmd.UpLoadSessionID)
 	if err != nil {
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
@@ -180,14 +179,31 @@ func (cp *CreatePostUC) ExecuteUploadPost(ctx context.Context, cmd UploadPostCmd
 		}
 		src, err := cp.objectStorage.GetObject(ctx, string(config.TempBucket), mediaID.String())
 
-		if err != nil {
+		buf := make([]byte, 512)
+		if _, err := io.ReadFull(src, buf); err != nil {
 			return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 		}
-
-		newImg, size, err := cp.processMedia(ctx, src, mediaW, mediaH)
-
-		if err != nil {
+		if _, err := src.Seek(0, io.SeekStart); err != nil {
 			return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+		}
+		MIMEType := http.DetectContentType(buf)
+		parts := strings.Split(MIMEType, "/")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+		}
+		contentType := parts[0]
+
+		switch contentType {
+		case "image":
+			newImg, size, err := cp.processImage(ctx, src, mediaW, mediaH)
+			if err != nil {
+				return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+			}
+			if err := cp.objectStorage.PutObject(ctx, string(config.PostBucket), mediaID.String(), newImg, int64(size)); err != nil {
+				return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+			}
+		case "video":
+				
 		}
 
 		medias = append(medias,
@@ -200,14 +216,19 @@ func (cp *CreatePostUC) ExecuteUploadPost(ctx context.Context, cmd UploadPostCmd
 			},
 		)
 
-		if err := cp.objectStorage.PutObject(ctx, string(config.PostBucket), mediaID.String(), newImg, int64(size)); err != nil {
-			return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-		}
 	}
 
 	post.SetMedias(medias)
 	postId, err := cp.postRepo.CreatePost(ctx, *post)
 	if err != nil {
+		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
+	}
+
+	if err := cp.postProducer.Send(ctx, domain.PostEvent{
+		AuthorID: cmd.AuthorID,
+		PostID:   *postId,
+		Type:     domain.Created,
+	}); err != nil {
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
 
@@ -258,8 +279,17 @@ func (cp *CreatePostUC) parseContent(ctx context.Context, p *domain.Post) {
 	}
 }
 
-func (cp *CreatePostUC) processMedia(ctx context.Context, mediaSrc io.Reader, width int, height int) (io.Reader, int, error) {
-	media, size, err := cp.imgProcessor.Resize(mediaSrc, width, height)
+func (cp *CreatePostUC) processImage(ctx context.Context, imageSrc io.Reader, width int, height int) (io.Reader, int, error) {
+	media, size, err := cp.imgProcessor.Resize(imageSrc, width, height)
+	if err != nil {
+		return nil, 0, fmt.Errorf("CreatePostUC.processImage: %w", err)
+	}
+
+	return media, size, err
+}
+
+func (cp *CreatePostUC) processVideo(ctx context.Context, videoSrc io.Reader, width int, height int) (io.Reader, int, error) {
+	media, size, err := cp.imgProcessor.Resize(videoSrc, width, height)
 	if err != nil {
 		return nil, 0, fmt.Errorf("CreatePostUC.processImage: %w", err)
 	}

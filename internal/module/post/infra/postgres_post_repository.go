@@ -52,8 +52,6 @@ func (pr *PostgresPostRepository) CreatePost(ctx context.Context, post domain.Po
 
 	insertMention := `INSERT INTO content.post_mentions (post_id, user_id) VALUES ($1, $2);`
 
-	increPostCounts := `UPDATE profile.users SET posts_count = posts_count + 1 WHERE user_id = $1;`
-
 	batch := &pgx.Batch{}
 
 	for _, m := range post.Medias() {
@@ -63,8 +61,6 @@ func (pr *PostgresPostRepository) CreatePost(ctx context.Context, post domain.Po
 	for _, userID := range post.Mentions() {
 		batch.Queue(insertMention, postID, userID)
 	}
-
-	batch.Queue(increPostCounts, post.AuthorID())
 
 	if err := tx.SendBatch(ctx, batch).Close(); err != nil {
 		return nil, fmt.Errorf("PostgresPostRepository.Create: %w", err)

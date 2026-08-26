@@ -1,6 +1,8 @@
 package user
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 	"github.com/htan06/Moments/internal/module/user/infra"
 	"github.com/htan06/Moments/internal/module/user/usecase"
@@ -10,10 +12,12 @@ import (
 )
 
 type UserModule struct {
-	userHandler *UserHandler
+	userHandler       *UserHandler
+	updatePostCountUC *usecase.UpdatePostCountUC
 }
 
 func InitUserModule(
+	ctx context.Context,
 	postgresConn *pgxpool.Pool,
 	redisConn *redis.Client,
 	storageConn *minio.Client,
@@ -22,7 +26,9 @@ func InitUserModule(
 	cacheRepo := infra.NewRedisCacheRepository(redisConn)
 	objectStorage := infra.NewMinIOStorage(storageConn)
 	processImg := infra.NewProcessImg()
-
+	userPostConsumer := infra.NewKafkaUserPostConsumer()
+	userFollowConsumer := infra.NewKafkaUserFollowConsumer()
+	
 	getProfileUsecase := usecase.NewGetProfileUsecase(userRepo)
 	updateProfileUsecase := usecase.NewUpdateProfileUsecase(userRepo)
 	changeAvatarUsecase := usecase.NewChangeAvatarUsecase(userRepo, cacheRepo, objectStorage, processImg)
@@ -30,6 +36,12 @@ func InitUserModule(
 	creaProfileUC := usecase.NewCreateProfileUC(userRepo)
 
 	userHandler := NewUserHandler(creaProfileUC, getProfileUsecase, updateProfileUsecase, changeAvatarUsecase, searchUC)
+
+	incPostCountUC := usecase.NewUpdatePostCountUC(userRepo, userPostConsumer)
+	updateFollowCount := usecase.NewUpdateFollowCountUC(userRepo, userFollowConsumer)
+
+	go incPostCountUC.Run(ctx)
+	go updateFollowCount.Run(ctx)
 
 	return &UserModule{
 		userHandler: userHandler,

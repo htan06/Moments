@@ -99,20 +99,23 @@ func (pfr *PostgresFollowRepository) GetFollowers(ctx context.Context, username 
 	return users, nil
 }
 
-func (pfr *PostgresFollowRepository) RemoveByFollowerID(ctx context.Context, followID int64, followerID int64) error {
-	query := `DELETE FROM social.follows WHERE id = $1 AND follower_id = $2;`
+func (pfr *PostgresFollowRepository) RemoveByFollowerID(ctx context.Context, followID int64, followerID int64) (domain.Follow, error) {
+	query := `DELETE FROM social.follows WHERE id = $1 AND follower_id = $2 RETURNING follower_id, following_id;`
 
-	if _, err := pfr.conn.Exec(ctx, query, followID, followerID); err != nil {
-		return fmt.Errorf("PostgresFollowRepository.RemoveByFollowerID: %w", err)
+	var follow domain.Follow
+	if err := pfr.conn.QueryRow(ctx, query, followID, followerID).Scan(&follow.FollowerID, &follow.FollowingID); err != nil {
+		return domain.Follow{}, fmt.Errorf("PostgresFollowRepository.RemoveByFollowerID: %w", err)
 	}
-	return nil
+	return follow, nil
 }
 
-func (pfr *PostgresFollowRepository) RemoveByFollowingID(ctx context.Context, followID int64, followingID int64) error {
-	query := `DELETE FROM social.follows WHERE id = $1 AND following_id = $2;`
+func (pfr *PostgresFollowRepository) RemoveByFollowingID(ctx context.Context, followID int64, followingID int64) (domain.Follow, error) {
+	query := `DELETE FROM social.follows WHERE id = $1 AND following_id = $2 RETURNING follower_id, following_id;`
 
-	if _, err := pfr.conn.Exec(ctx, query, followID, followingID); err != nil {
-		return fmt.Errorf("PostgresFollowRepository.RemoveByFollowingID: %w", err)
+	var follow domain.Follow
+	if err := pfr.conn.QueryRow(ctx, query, followID, followingID).Scan(&follow.FollowerID, &follow.FollowingID); err != nil {
+		return domain.Follow{}, fmt.Errorf("PostgresFollowRepository.RemoveByFollowerID: %w", err)
 	}
-	return nil
+
+	return follow, nil
 }

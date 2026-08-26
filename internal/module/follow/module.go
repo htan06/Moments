@@ -15,12 +15,13 @@ func InitFollowModule(
 	postgresConn *pgxpool.Pool,
 ) *FollowModule {
 	followRepo := infra.NewPostgresFollowRepository(postgresConn)
+	followProducer := infra.NewKafakFollowProducer()
 
-	createFollowUsecase := usecase.NewCreateFollowUsecase(followRepo)
+	createFollowUsecase := usecase.NewCreateFollowUsecase(followRepo, followProducer)
 	getFollowingUsecase := usecase.NewGetFollowingUsecase(followRepo)
 	getFollowersUsecase := usecase.NewGetFollowersUsecase(followRepo)
-	removeFollowerUsecase := usecase.NewRemovefollowerUsecase(followRepo)
-	UnfollowUsecase := usecase.NewUnfollowUsecase(followRepo)
+	removeFollowerUsecase := usecase.NewRemovefollowerUsecase(followRepo, followProducer)
+	UnfollowUsecase := usecase.NewUnfollowUsecase(followRepo, followProducer)
 
 	followHandler := NewFollowHandler(createFollowUsecase, getFollowingUsecase, getFollowersUsecase, removeFollowerUsecase, UnfollowUsecase)
 

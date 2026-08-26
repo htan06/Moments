@@ -13,10 +13,14 @@ type RemoveFollowCmd struct {
 }
 
 type RemovefollowerUsecase struct {
-	followRepo domain.FollowRepository
+	followRepo     domain.FollowRepository
+	followProducer domain.FollowProducer
 }
 
-func NewRemovefollowerUsecase(followRepo domain.FollowRepository) *RemovefollowerUsecase {
+func NewRemovefollowerUsecase(
+	followRepo domain.FollowRepository,
+	followProducer domain.FollowProducer,
+) *RemovefollowerUsecase {
 	return &RemovefollowerUsecase{
 		followRepo: followRepo,
 	}
@@ -24,8 +28,18 @@ func NewRemovefollowerUsecase(followRepo domain.FollowRepository) *Removefollowe
 
 func (ufu *RemovefollowerUsecase) Execute(ctx context.Context, cmd RemoveFollowCmd) error {
 
-	if err := ufu.followRepo.RemoveByFollowingID(ctx, cmd.FollowID, cmd.UserID); err != nil {
+	follow, err := ufu.followRepo.RemoveByFollowingID(ctx, cmd.FollowID, cmd.UserID)
+	if err != nil {
 		return fmt.Errorf("RemovefollowerUsecase.Execute: %w", err)
 	}
+
+	if err := ufu.followProducer.SendMessage(ctx, domain.FollowEvent{
+		FollowerID:  follow.FollowerID,
+		FollowingID: follow.FollowingID,
+		Type:        domain.FollowDeleted,
+	}); err != nil {
+		return fmt.Errorf("CreateFollowUC.Execute: %w", err)
+	}
+
 	return nil
 }

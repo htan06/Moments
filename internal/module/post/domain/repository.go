@@ -22,18 +22,26 @@ type PostRepository interface {
 
 type ObjectStorage interface {
 	GetPresignedURLUpload(ctx context.Context, bucketName string, objName string, ttl time.Duration) (string, error)
-	GetObject(ctx context.Context, bucketName string, objName string) (io.Reader, error)
+	GetObject(ctx context.Context, bucketName string, objName string) (io.ReadSeekCloser, error)
 	PromotePostImage(ctx context.Context, objName string) error
 	PutObject(ctx context.Context, bucketName string, objName string, file io.Reader, size int64) error
 }
 
 type CacheRepository interface {
-	SetUploadPostSession(ctx context.Context, key string, createPostSession *CreatePostSession) error
-	GetUploadPostSession(ctx context.Context, key string) (CreatePostSession, error)
-	IncPostLikes(ctx context.Context, key string) error
-	DecPostLikes(ctx context.Context, key string) error
+	SetUploadPostSession(ctx context.Context, userID int64, sessionID string, createPostSession *CreatePostSession) error
+	GetUploadPostSession(ctx context.Context, userID int64, sessionID string) (CreatePostSession, error)
+	IncPostLikes(ctx context.Context, userID int64, sessionID string) error
+	DecPostLikes(ctx context.Context, userID int64, sessionID string) error
 }
 
 type ProcessImg interface {
 	Resize(reader io.Reader, width int, height int) (io.Reader, int, error)
+}
+
+// type ProcessVideo interface {
+// 	HLS(url string) (io.Reader, int, error)
+// }
+
+type PostProducer interface {
+	Send(ctx context.Context, postCreated PostEvent) error
 }

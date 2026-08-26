@@ -10,8 +10,12 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+func createPostSessionKey(userID int64, sessionID string) string {
+	return fmt.Sprintf("create-post-session:%d-%s", userID, sessionID)
+}
+
 type RedisCacheRepository struct {
-	conn     *redis.Client
+	conn *redis.Client
 	// postRepo domain.PostRepository
 }
 
@@ -20,12 +24,14 @@ func NewRedisCacheRepository(
 	// postRepo domain.PostRepository,
 ) *RedisCacheRepository {
 	return &RedisCacheRepository{
-		conn:     conn,
+		conn: conn,
 		// postRepo: postRepo,
 	}
 }
 
-func (rc *RedisCacheRepository) SetUploadPostSession(ctx context.Context, key string, createPostSession *domain.CreatePostSession) error {
+func (rc *RedisCacheRepository) SetUploadPostSession(ctx context.Context, userID int64, sessionID string, createPostSession *domain.CreatePostSession) error {
+	key := createPostSessionKey(userID, sessionID)
+
 	data, err := json.Marshal(*createPostSession)
 	if err != nil {
 		return fmt.Errorf("RedisCacheRepository.SetUploadPostSession: %w", err)
@@ -38,7 +44,9 @@ func (rc *RedisCacheRepository) SetUploadPostSession(ctx context.Context, key st
 	return nil
 }
 
-func (rc *RedisCacheRepository) GetUploadPostSession(ctx context.Context, key string) (domain.CreatePostSession, error) {
+func (rc *RedisCacheRepository) GetUploadPostSession(ctx context.Context, userID int64, sessionID string) (domain.CreatePostSession, error) {
+	key := createPostSessionKey(userID, sessionID)
+	
 	data, err := rc.conn.Get(ctx, key).Bytes()
 	if err != nil {
 		return domain.CreatePostSession{}, fmt.Errorf("RedisCacheRepository.GetUploadPostSession: %w", err)
@@ -52,12 +60,12 @@ func (rc *RedisCacheRepository) GetUploadPostSession(ctx context.Context, key st
 	return uploadPostSession, nil
 }
 
-func (rc *RedisCacheRepository) IncPostLikes(ctx context.Context, key string) error {
+func (rc *RedisCacheRepository) IncPostLikes(ctx context.Context, userID int64, sessionID string) error {
 	// if _, err := rc.conn.Incr(ctx, key).Result(); err != nil && err == redis.Nil {
 
 	// }
 	return nil
 }
-func (rc *RedisCacheRepository) DecPostLikes(ctx context.Context, key string) error {
+func (rc *RedisCacheRepository) DecPostLikes(ctx context.Context, userID int64, sessionID string) error {
 	return nil
 }

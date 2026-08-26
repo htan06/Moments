@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/htan06/Moments/internal/errs"
@@ -23,12 +24,17 @@ type CreateFollowRes struct {
 }
 
 type CreateFollowUsecase struct {
-	followRepo domain.FollowRepository
+	followRepo     domain.FollowRepository
+	followProducer domain.FollowProducer
 }
 
-func NewCreateFollowUsecase(followRepo domain.FollowRepository) *CreateFollowUsecase {
+func NewCreateFollowUsecase(
+	followRepo domain.FollowRepository,
+	followProducer domain.FollowProducer,
+) *CreateFollowUsecase {
 	return &CreateFollowUsecase{
-		followRepo: followRepo,
+		followRepo:     followRepo,
+		followProducer: followProducer,
 	}
 }
 
@@ -45,6 +51,14 @@ func (fuu *CreateFollowUsecase) Execute(ctx context.Context, cmd CreateFollowCmd
 	id, err := fuu.followRepo.CreateFollow(ctx, follow)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := fuu.followProducer.SendMessage(ctx, domain.FollowEvent{
+		FollowerID:  follow.FollowerID,
+		FollowingID: follow.FollowingID,
+		Type:        domain.FollowCreated,
+	}); err != nil {
+		return nil, fmt.Errorf("CreateFollowUC.Execute: %w", err)
 	}
 
 	return id, nil
