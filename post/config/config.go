@@ -12,10 +12,10 @@ const (
 
 type StorageNamespace string
 
-var StorageAddress StorageNamespace
+var StorageAddress string
 
 func GetStorageAddress() {
-	StorageAddress = StorageNamespace(os.Getenv("STORAGE_ADDRESS"))
+	StorageAddress = os.Getenv("STORAGE_ADDRESS")
 }
 
 const (

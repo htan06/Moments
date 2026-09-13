@@ -29,7 +29,7 @@ func NewGetFollowersUsecase(followRepo domain.FollowRepository) *GetFollowersUse
 }
 
 func (gfu *GetFollowersUsecase) Execute(ctx context.Context, qry GetFollowersQry) (GetFollowersRes, error) {
-	users, err := gfu.followRepo.GetFollowers(ctx, qry.Username, qry.PageSize, qry.Cursor)
+	users, err := gfu.followRepo.GetFollowers(ctx, qry.Username, qry.PageSize, qry.Cursor/1000000.0)
 
 	if err != nil {
 		return GetFollowersRes{}, fmt.Errorf("GetFollowersUsecase.Execute: %w", err)

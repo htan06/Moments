@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/htan06/Moments/post/internal/domain"
 )
@@ -32,12 +33,17 @@ func (l *UnlikePostUC) Execute(ctx context.Context, cmd UnlikePostCmd) error {
 		return fmt.Errorf("UnlikePostUC.Execute: %w", err)
 	}
 
-	go l.postProducer.SendInteractionEvent(ctx, domain.InteractionEvent{
-		UserID:          cmd.UserID,
-		PostID:          cmd.PostID,
-		Action:          domain.Deleted,
-		TypeInteraction: domain.LikeInteraction,
-	})
+	go func() {
+		err := l.postProducer.SendInteractionEvent(context.Background(), domain.InteractionEvent{
+			UserID:          cmd.UserID,
+			PostID:          cmd.PostID,
+			Action:          domain.Deleted,
+			TypeInteraction: domain.LikeInteraction,
+		})
+		if err != nil {
+			log.Println(err.Error())
+		}
+	}()
 
 	return nil
 }

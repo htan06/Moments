@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/htan06/Moments/post/internal/domain"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -217,27 +218,34 @@ func (pr *PostgresPostRepository) DeletePostByUserIDAndPostID(ctx context.Contex
 	return nil
 }
 
-func (pr *PostgresPostRepository) GetPostsByUsername(ctx context.Context, username string) ([]domain.PostGridItem, error) {
-	qry := `SELECT 
-					id,
-					thumbnail_id,
-					media_count,
-					like_count,
-					comment_count,
-					created_at
-				FROM content.posts
-				WHERE author_id = (SELECT user_id FROM profile.users WHERE username = $1) 
-				ORDER BY created_at DESC;`
+func (pr *PostgresPostRepository) GetPostsByAuthorID(ctx context.Context, authorID int64, cursor int64, size int) ([]domain.PostGridItem, error) {
+	psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
-	rows, err := pr.conn.Query(ctx, qry, username)
+	qryBuilder := psql.
+		Select("id", "thumbnail_id", "media_count", "like_count", "comment_count", "created_at").
+		From("content.posts").
+		Where(squirrel.Eq{"author_id": authorID}).
+		OrderBy("created_at DESC").
+		Limit(uint64(size))
+
+	if cursor != 0 {
+		qryBuilder = qryBuilder.Where("created_at < to_timestamp(?)", cursor)
+	}
+
+	qry, args, err := qryBuilder.ToSql()
 	if err != nil {
-		return []domain.PostGridItem{}, fmt.Errorf("GetPostByUsername.GetPostsByUsername: %w", err)
+		return []domain.PostGridItem{}, fmt.Errorf("PostgresPostRepository.GetPostsByAuthorID: %w", err)
+	}
+
+	rows, err := pr.conn.Query(ctx, qry, args...)
+	if err != nil {
+		return []domain.PostGridItem{}, fmt.Errorf("PostgresPostRepository.GetPostsByAuthorID: %w", err)
 	}
 	defer rows.Close()
 
 	posts, err := pgx.CollectRows[domain.PostGridItem](rows, pgx.RowToStructByName)
 	if err != nil {
-		return []domain.PostGridItem{}, fmt.Errorf("GetPostByUsername.GetPostsByUsername: %w", err)
+		return []domain.PostGridItem{}, fmt.Errorf("PostgresPostRepository.GetPostsByAuthorID: %w", err)
 	}
 	return posts, nil
 }
@@ -245,7 +253,7 @@ func (pr *PostgresPostRepository) GetPostsByUsername(ctx context.Context, userna
 func (p *PostgresPostRepository) CreateLikePost(ctx context.Context, userID int64, postID int64) error {
 	qry := `INSERT INTO content.post_likes (user_id, post_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;`
 	tag, err := p.conn.Exec(ctx, qry, userID, postID)
-	
+
 	if err != nil {
 		return fmt.Errorf("PostgresPostRepository.CreateLikePost: %w", err)
 	}
@@ -316,3 +324,34 @@ func (p *PostgresPostRepository) DeleteRepost(ctx context.Context, userID int64,
 	}
 	return nil
 }
+
+func (p *PostgresPostRepository) UpadateBatchLikeCount(ctx context.Context, list map[int64]int64) error {
+	psqlStatement := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+
+	expr := squirrel.Case()
+	for postID, likeCount := range list {
+		expr = expr.When(squirrel.Eq{"id": postID}, squirrel.Expr("like_count + ?", likeCount))
+	}
+	expr = expr.Else("like_count")
+
+	qryBuilder := psqlStatement.Update("content.posts").Set("like_count", expr)
+	qry, args, err := qryBuilder.ToSql()
+	if err != nil {
+		return fmt.Errorf("PostgresPostRepository.UpadateBatchLikeCount: %w", err)
+	}
+
+	if _, err := p.conn.Exec(ctx, qry, args...); err != nil {
+		return fmt.Errorf("PostgresPostRepository.UpadateBatchLikeCount: %w", err)
+	}
+
+	// if tag.RowsAffected() != int64(len(list)) {
+	// 	return fmt.Errorf("PostgresPostRepository.UpadateBatchLikeCount: %s", "Error update like count")
+	// }
+	return nil
+}
+
+// func (p *PostgresPostRepository) UpadateBatchCommentCount(ctx context.Context, list map[int64]int64) error {
+// }
+
+// func (p *PostgresPostRepository) UpadateBatchRepostCount(ctx context.Context, list map[int64]int64) error {
+// }

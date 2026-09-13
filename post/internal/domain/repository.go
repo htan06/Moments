@@ -13,7 +13,7 @@ type UserRepository interface {
 type PostRepository interface {
 	CreatePost(ctx context.Context, post Post) (*int64, error)
 	GetPost(ctx context.Context, postID int64) (PostReadModel, error)
-	GetPostsByUsername(ctx context.Context, username string) ([]PostGridItem, error)
+	GetPostsByAuthorID(ctx context.Context, authorID int64, cursor int64, size int) ([]PostGridItem, error)
 	DeletePostByUserIDAndPostID(ctx context.Context, userID int64, postID int64) error
 
 	CreateLikePost(ctx context.Context, userID int64, postID int64) error
@@ -22,6 +22,8 @@ type PostRepository interface {
 	GetRepostsByUsername(ctx context.Context, username string) ([]PostGridItem, error)
 	CreateRepost(ctx context.Context, userID int64, postID int64) (int64, error)
 	DeleteRepost(ctx context.Context, userID int64, repostID int64) error
+
+	UpadateBatchLikeCount(ctx context.Context, list map[int64]int64) error
 }
 
 type ObjectStorage interface {
@@ -54,5 +56,6 @@ type PostProducer interface {
 }
 
 type InteractionConsumer interface {
-	ReadMessage(ctx context.Context) (InteractionEvent, error)
+	ReadMessage(ctx context.Context) (<-chan InteractionEvent, error)
+	Commit(ctx context.Context) error
 }

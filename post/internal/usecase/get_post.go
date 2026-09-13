@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/post/config"
 	"github.com/htan06/Moments/post/internal/domain"
 )
 
@@ -20,7 +20,7 @@ func NewGetPostUC(
 	}
 }
 
-func (gp *GetPostUC) Excute(ctx context.Context, postID int64) (domain.PostReadModel, error) {
+func (gp *GetPostUC) Execute(ctx context.Context, postID int64) (domain.PostReadModel, error) {
 	post, err := gp.postRepo.GetPost(ctx, postID)
 	if err != nil {
 		return domain.PostReadModel{}, fmt.Errorf("GetPostUC.Excute: %w", err)

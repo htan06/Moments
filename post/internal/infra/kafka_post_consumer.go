@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/htan06/Moments/post/internal/domain"
 	"github.com/segmentio/kafka-go"
 )
 
 type KafkaInteractionConsumer struct {
-	reader *kafka.Reader
+	reader      *kafka.Reader
+	lastMessage kafka.Message
 }
 
 func NewKafkaInteractionConsumer() *KafkaInteractionConsumer {
@@ -23,17 +25,41 @@ func NewKafkaInteractionConsumer() *KafkaInteractionConsumer {
 	}
 }
 
-func (k *KafkaInteractionConsumer) ReadMessage(ctx context.Context) (domain.InteractionEvent, error) {
-	m, err := k.reader.ReadMessage(ctx)
-	if err != nil {
-		return domain.InteractionEvent{}, fmt.Errorf("KafkaInteractionConsumer.ReadMessage: %w", err)
-	}
-	defer k.reader.CommitMessages(ctx, m)
+func (k *KafkaInteractionConsumer) ReadMessage(ctx context.Context) (<-chan domain.InteractionEvent, error) {
+	eventChan := make(chan domain.InteractionEvent, 10)
 
-	var followEvent domain.InteractionEvent
-	if err := json.Unmarshal(m.Value, &followEvent); err != nil {
-		return domain.InteractionEvent{}, fmt.Errorf("KafkaInteractionConsumer.ReadMessage: %w", err)
-	}
+	go func(ctx context.Context, eventChan chan<- domain.InteractionEvent, k *KafkaInteractionConsumer) {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				m, err := k.reader.FetchMessage(ctx)
+				if err != nil {
+					log.Println("KafkaInteractionConsumer.ReadMessage: %w", err)
+					return
+				}
+				k.lastMessage = m
 
-	return followEvent, nil
+				var followEvent domain.InteractionEvent
+				if err := json.Unmarshal(m.Value, &followEvent); err != nil {
+					log.Println("KafkaInteractionConsumer.ReadMessage: %w", err)
+					return
+				}
+				eventChan <- followEvent
+				log.Println(followEvent)
+			}
+
+		}
+
+	}(ctx, eventChan, k)
+
+	return eventChan, nil
+}
+
+func (k KafkaInteractionConsumer) Commit(ctx context.Context) error {
+	if err := k.reader.CommitMessages(ctx, k.lastMessage); err != nil {
+		return fmt.Errorf("KafkaInteractionConsumer.Commit: %w", err)
+	}
+	return nil
 }

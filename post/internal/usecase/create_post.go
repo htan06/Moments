@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/h2non/filetype"
-	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/post/config"
 	"github.com/htan06/Moments/post/internal/domain"
 
 	_ "image/gif"  // Registers GIF decoder
