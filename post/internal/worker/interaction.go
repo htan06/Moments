@@ -2,11 +2,13 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/htan06/Moments/post/internal/domain"
+	"github.com/htan06/Moments/post/internal/errs"
 )
 
 type InteractionWorker struct {
@@ -36,7 +38,7 @@ func NewInteractionWorker(
 func (i *InteractionWorker) Run(ctx context.Context) {
 	log.Println("INFO: Interaction worker is running...")
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(15 * time.Second)
 
 	eventChan, err := i.interactionConsumer.ReadMessage(ctx)
 	if err != nil {
@@ -56,13 +58,13 @@ func (i *InteractionWorker) Run(ctx context.Context) {
 				log.Println(err.Error())
 			}
 		case event := <-eventChan:
-			i.processEvent(event)
+			i.processEvent(ctx, event)
 		}
 	}
 
 }
 
-func (i *InteractionWorker) processEvent(event domain.InteractionEvent) {
+func (i *InteractionWorker) processEvent(ctx context.Context, event domain.InteractionEvent) {
 	var changeVal int64
 
 	if event.Action == domain.Created {
@@ -73,7 +75,7 @@ func (i *InteractionWorker) processEvent(event domain.InteractionEvent) {
 
 	switch event.TypeInteraction {
 	case domain.LikeInteraction:
-		i.like[event.PostID] += changeVal
+		i.updateLikeCount(ctx, event.PostID, changeVal)
 	case domain.CommentInteraction:
 		i.comment[event.PostID] += changeVal
 	case domain.RepostInteraction:
@@ -90,5 +92,47 @@ func (i *InteractionWorker) FlushLikeCount(ctx context.Context) error {
 		return fmt.Errorf("InteractionWorker.FlushLikeCount: %w", err)
 	}
 	i.like = make(map[int64]int64)
+	return nil
+}
+
+func (i *InteractionWorker) updateLikeCount(ctx context.Context, postID int64, changeVal int64) error {
+	i.like[postID] += changeVal
+
+	switch changeVal {
+	case 1:
+		if err := i.cacheRepo.IncPostLikes(ctx, postID); err != nil {
+			if appErr, ok := errors.AsType[*errs.Error](err); !ok || appErr.Code != errs.PostLikeCacheNotFound {
+				return fmt.Errorf("InteractionWorker.updateLikeCount: %w", err)
+			}
+			likeCountDB, err := i.postRepo.GetLikeCount(ctx, postID)
+
+			if err != nil {
+				return fmt.Errorf("InteractionWorker.updateLikeCount: %w", err)
+			}
+
+			likeCount := likeCountDB + i.like[postID]
+
+			if err := i.cacheRepo.SetPostLikesIfNotExists(ctx, postID, int(likeCount)); err != nil {
+				return fmt.Errorf("InteractionWorker.updateLikeCount: %w", err)
+			}
+		}
+	case -1:
+		if err := i.cacheRepo.DecPostLikes(ctx, postID); err != nil {
+			if appErr, ok := errors.AsType[*errs.Error](err); !ok || appErr.Code != errs.PostLikeCacheNotFound {
+				return fmt.Errorf("InteractionWorker.updateLikeCount: %w", err)
+			}
+			likeCountDB, err := i.postRepo.GetLikeCount(ctx, postID)
+
+			if err != nil {
+				return fmt.Errorf("InteractionWorker.updateLikeCount: %w", err)
+			}
+
+			likeCount := likeCountDB + i.like[postID]
+
+			if err := i.cacheRepo.SetPostLikesIfNotExists(ctx, postID, int(likeCount)); err != nil {
+				return fmt.Errorf("InteractionWorker.updateLikeCount: %w", err)
+			}
+		}
+	}
 	return nil
 }

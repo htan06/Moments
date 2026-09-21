@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/htan06/Moments/internal/config"
+	"github.com/htan06/Moments/post/config"
 	"github.com/minio/minio-go/v7"
 )
 

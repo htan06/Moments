@@ -14,8 +14,8 @@ type MediaType string
 type Visibility string
 
 type AspectRatio struct {
-	width  int
-	height int
+	Width  int
+	Height int
 }
 
 func NewAspectRatio(value string) (AspectRatio, error) {
@@ -28,7 +28,7 @@ func NewAspectRatio(value string) (AspectRatio, error) {
 		)
 	}
 
-	width, err := strconv.Atoi(parts[0])
+	Width, err := strconv.Atoi(parts[0])
 	if err != nil {
 		return AspectRatio{}, errs.NewError(
 			errs.Invalid,
@@ -37,7 +37,7 @@ func NewAspectRatio(value string) (AspectRatio, error) {
 		)
 	}
 
-	height, err := strconv.Atoi(parts[1])
+	Height, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return AspectRatio{}, errs.NewError(
 			errs.Invalid,
@@ -47,8 +47,8 @@ func NewAspectRatio(value string) (AspectRatio, error) {
 	}
 
 	ratio := AspectRatio{
-		width:  width,
-		height: height,
+		Width:  Width,
+		Height: Height,
 	}
 
 	if !ratio.IsSupported() {
@@ -63,20 +63,20 @@ func NewAspectRatio(value string) (AspectRatio, error) {
 }
 
 func (a AspectRatio) String() string {
-	return fmt.Sprintf("%d:%d", a.width, a.height)
+	return fmt.Sprintf("%d:%d", a.Width, a.Height)
 }
 
 var supportedAspectRatios = map[AspectRatio]struct{}{
-	{width: 1, height: 1}:  {},
-	{width: 3, height: 4}:  {},
-	{width: 3, height: 5}:  {},
-	{width: 4, height: 3}:  {},
-	{width: 5, height: 3}:  {},
-	{width: 16, height: 9}: {},
+	{Width: 1, Height: 1}:  {},
+	{Width: 3, Height: 4}:  {},
+	{Width: 3, Height: 5}:  {},
+	{Width: 4, Height: 3}:  {},
+	{Width: 5, Height: 3}:  {},
+	{Width: 16, Height: 9}: {},
 }
 
-func (a AspectRatio) Demensions() (widht int, height int) {
-	return a.width, a.height
+func (a AspectRatio) Demensions() (widht int, Height int) {
+	return a.Width, a.Height
 }
 
 func (a AspectRatio) IsSupported() bool {

@@ -5,7 +5,7 @@ import (
 )
 
 type MediaReadModel struct {
-	ID           int64     `json:"id" db:"id"`
+	ID           int64     `json:"id" db:"m_id"`
 	Type         string    `json:"type" db:"type"`
 	MediaID      string    `json:"media_url" db:"media_id"`
 	DisplayOrder int       `json:"display_order" db:"display_order"`
@@ -13,7 +13,7 @@ type MediaReadModel struct {
 	Height       *int      `json:"height,omitempty" db:"height"`
 	Duration     *int      `json:"duration,omitempty" db:"duration"`
 	Size         *int64    `json:"size,omitempty" db:"size"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	CreatedAt    time.Time `json:"created_at" db:"m_created_at"`
 }
 
 type PostReadModel struct {
@@ -34,11 +34,25 @@ type PostReadModel struct {
 	UpdatedAt               time.Time        `json:"updated_at" db:"updated_at"`
 }
 
-type PostGridItem struct {
-	ID           int64     `json:"id" db:"id"`
-	ThumbnailID  string    `json:"thumbnail_url" db:"thumbnail_id"`
-	MediaCount   int       `json:"media_count" db:"media_count"`
-	LikeCount    int       `json:"like_count" db:"like_count"`
-	CommentCount int       `json:"comment_count" db:"comment_count"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+func EnrichContent(content []Content) {
+	for i := range content {
+		switch content[i].Type {
+		case Mention:
+			content[i].Text = "@" + content[i].Text
+		case Hashtag:
+			content[i].Text = "#" + content[i].Text
+		}
+	}
+}
+
+type PostSummary struct {
+	ID           int64            `json:"id" db:"p_id"`
+	ThumbnailID  string           `json:"thumbnail_url" db:"thumbnail_id"`
+	Content      []Content        `json:"content" db:"content"`
+	MediaCount   int              `json:"media_count" db:"media_count"`
+	Medias       []MediaReadModel `json:"medias" db:"-"`
+	LikeCount    int              `json:"like_count" db:"like_count"`
+	IsLiked      bool             `json:"is_liked" db:"is_like"`
+	CommentCount int              `json:"comment_count" db:"comment_count"`
+	CreatedAt    time.Time        `json:"created_at" db:"p_created_at"`
 }

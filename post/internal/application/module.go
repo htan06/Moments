@@ -34,7 +34,7 @@ func InitPostModule(
 	handler := handler.NewPostHandler(
 		usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo, imgProcessor, videoProcessor, postProducer),
 		usecase.NewGetPostUC(postRepo),
-		usecase.NewGetPostsUC(postRepo),
+		usecase.NewGetPostsByCursorUC(postRepo, cacheRepo),
 		usecase.NewDeletePostUC(postRepo, postProducer),
 		usecase.NewLikePostUC(postRepo, cacheRepo, postProducer),
 		usecase.NewUnlikePostUC(postRepo, postProducer),

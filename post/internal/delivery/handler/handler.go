@@ -11,10 +11,10 @@ import (
 )
 
 type PostHandler struct {
-	createPostUC *usecase.CreatePostUC
-	getPostUC    *usecase.GetPostUC
-	getPostsUC   *usecase.GetPostsUC
-	deletePostUC *usecase.DeletePostUC
+	createPostUC       *usecase.CreatePostUC
+	getPostUC          *usecase.GetPostUC
+	petPostsByCursorUC *usecase.GetPostsByCursorUC
+	deletePostUC       *usecase.DeletePostUC
 
 	likePostUC   *usecase.LikePostUC
 	unlikePostUC *usecase.UnlikePostUC
@@ -27,7 +27,7 @@ type PostHandler struct {
 func NewPostHandler(
 	createPostUC *usecase.CreatePostUC,
 	getPostUC *usecase.GetPostUC,
-	getPostsUC *usecase.GetPostsUC,
+	petPostsByCursorUC *usecase.GetPostsByCursorUC,
 	deletePostUC *usecase.DeletePostUC,
 	likePostUC *usecase.LikePostUC,
 	unlikePostUC *usecase.UnlikePostUC,
@@ -36,15 +36,15 @@ func NewPostHandler(
 	deleteRepostUC *usecase.DeleteRepostUC,
 ) *PostHandler {
 	return &PostHandler{
-		createPostUC:     createPostUC,
-		getPostUC:        getPostUC,
-		getPostsUC:       getPostsUC,
-		deletePostUC:     deletePostUC,
-		likePostUC:       likePostUC,
-		unlikePostUC:     unlikePostUC,
-		getUserRepostsUC: getRepostsUC,
-		createRepostUC:   createRepostUC,
-		deleteRepostUC:   deleteRepostUC,
+		createPostUC:       createPostUC,
+		getPostUC:          getPostUC,
+		petPostsByCursorUC: petPostsByCursorUC,
+		deletePostUC:       deletePostUC,
+		likePostUC:         likePostUC,
+		unlikePostUC:       unlikePostUC,
+		getUserRepostsUC:   getRepostsUC,
+		createRepostUC:     createRepostUC,
+		deleteRepostUC:     deleteRepostUC,
 	}
 }
 
@@ -58,11 +58,11 @@ func (ph *PostHandler) HandleUploadPost(c *gin.Context) {
 	}
 
 	var req struct {
-		UploadSessionID string            `json:"session_id"`
-		Contents        []domain.Content  `json:"contents"`
-		Visibility      domain.Visibility `json:"visibility"`
-		AspectRatio     string            `json:"aspect_ratio"`
-		MediaIds        uuid.UUIDs        `json:"media_ids"`
+		UploadSessionID string                `json:"session_id"`
+		Contents        []domain.Content      `json:"contents"`
+		Visibility      domain.Visibility     `json:"visibility"`
+		AspectRatio     string                `json:"aspect_ratio"`
+		MediaUploads    []usecase.MediaUpload `json:"media_uploads"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -76,7 +76,7 @@ func (ph *PostHandler) HandleUploadPost(c *gin.Context) {
 		Contents:        req.Contents,
 		Visibility:      req.Visibility,
 		AspectRatio:     req.AspectRatio,
-		MediaIDs:        req.MediaIds,
+		MediaUploads:    req.MediaUploads,
 	}
 
 	postID, err := ph.createPostUC.ExecuteUploadPost(ctx, cmd)
@@ -206,24 +206,20 @@ func (ph *PostHandler) HandleDeletePost(c *gin.Context) {
 func (ph *PostHandler) HandleGetPosts(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var qryReq struct {
-		AuthorID int64 `form:"author_id"`
-		Cursor   int64 `form:"cursor"`
-		Size     int   `form:"size"`
-	}
-
-	if err := c.ShouldBindQuery(&qryReq); err != nil {
-		c.Status(http.StatusBadRequest)
+	currentUser, exists := GetCurrentUser(c)
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	qry := usecase.GetPostsQry{
-		AuthorID: qryReq.AuthorID,
-		Cursor:   qryReq.Cursor,
-		Size:     qryReq.Size,
+	var qry usecase.GetPostsByCursorQry
+	if err := c.ShouldBindQuery(&qry); err != nil {
+		c.Status(http.StatusBadRequest)
+		return
 	}
+	qry.ViewerID = currentUser.ID()
 
-	resp, err := ph.getPostsUC.Execute(ctx, qry)
+	resp, err := ph.petPostsByCursorUC.Execute(ctx, qry)
 	if err != nil {
 		HandleError(c, err)
 		return

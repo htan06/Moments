@@ -12,6 +12,7 @@ import (
 const (
 	InteractionTopic string = "interaction"
 	PostTopic        string = "post"
+	MediaJobTopic    string = "media-job"
 )
 
 type KafkaPostProducer struct {
@@ -50,4 +51,8 @@ func (k *KafkaPostProducer) send(ctx context.Context, topic string, event interf
 		return fmt.Errorf("KafkaPostProducer.Send: %w", err)
 	}
 	return nil
+}
+
+func (k *KafkaPostProducer) SendProcessMediaJob(ctx context.Context, job interface{}) error {
+	return k.send(ctx, MediaJobTopic, job)
 }

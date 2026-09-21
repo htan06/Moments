@@ -25,3 +25,11 @@ type InteractionEvent struct {
 	TypeInteraction InteractionType `json:"type"`
 	Action          Action          `json:"action"`
 }
+
+type ProcessMediaJob struct {
+	ID          int64       `json:"id"`
+	Key         string      `json:"key"`
+	Bucket      string      `json:"bucket"`
+	MediaType   string      `json:"media_type"`
+	AspectRatio AspectRatio `json:"aspect_ratio"`
+}

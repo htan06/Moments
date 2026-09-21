@@ -17,6 +17,7 @@ const (
 	UsernameOrPasswordInvalid ErrorCode = "USERNAME_OR_PASSWORD_INVALID"
 	UserNonActiveErr          ErrorCode = "USER_NON_ACTIVE"
 	TokenInvalid              ErrorCode = "TOKEN_INVALID"
+	PostLikeCacheNotFound     ErrorCode = "POST_LIKE_CACHE_NOT_FOUND"
 )
 
 type ErrorType string

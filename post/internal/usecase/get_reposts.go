@@ -17,7 +17,7 @@ func NewGetRepostsUC(postRepo domain.PostRepository) *GetRepostsUC {
 	}
 }
 
-func (uc *GetRepostsUC) Execute(ctx context.Context, username string) ([]domain.PostGridItem, error) {
+func (uc *GetRepostsUC) Execute(ctx context.Context, username string) ([]domain.PostSummary, error) {
 	posts, err := uc.postRepo.GetRepostsByUsername(ctx, username)
 	if err != nil {
 		return nil, fmt.Errorf("GetRepostsUC.Execute: %w", err)

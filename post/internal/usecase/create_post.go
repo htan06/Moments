@@ -4,23 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"strconv"
+	"log"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/h2non/filetype"
 	"github.com/htan06/Moments/post/config"
 	"github.com/htan06/Moments/post/internal/domain"
-
-	_ "image/gif"  // Registers GIF decoder
-	_ "image/jpeg" // Registers JPEG decoder
-	_ "image/png"  // Registers PNG decoder
-
-	// For WebP or BMP, use golang.org/x/image
-	_ "golang.org/x/image/bmp"
-	_ "golang.org/x/image/webp"
+	"github.com/htan06/Moments/post/internal/usecase/job"
 )
 
 type UploadPostCmd struct {
@@ -29,7 +20,12 @@ type UploadPostCmd struct {
 	Contents        []domain.Content
 	Visibility      domain.Visibility
 	AspectRatio     string
-	MediaIDs        uuid.UUIDs
+	MediaUploads    []MediaUpload
+}
+
+type MediaUpload struct {
+	MediaID uuid.UUID        `json:"media_id"`
+	Type    domain.MediaType `json:"type"`
 }
 
 type CreatePostSessionCmd struct {
@@ -37,7 +33,7 @@ type CreatePostSessionCmd struct {
 	MediaCount int
 }
 
-type MediaUpload struct {
+type MediaUploadRes struct {
 	MediaID   string `json:"media_id"`
 	UploadURL string `json:"upload_url"`
 }
@@ -50,12 +46,7 @@ type RequestUploadURLs struct {
 
 type CreatePostSessionRes struct {
 	SessionID    string
-	MediaUploads []MediaUpload
-}
-
-type UploadPostRes struct {
-	PostSessionID string
-	MediaUploads  []MediaUpload
+	MediaUploads []MediaUploadRes
 }
 
 type CreatePostUC struct {
@@ -88,7 +79,7 @@ func NewCreatePostUC(
 	}
 }
 
-func (cp *CreatePostUC) ExecuteRequestUploadURLs(ctx context.Context, cmd RequestUploadURLs) ([]MediaUpload, error) {
+func (cp *CreatePostUC) ExecuteRequestUploadURLs(ctx context.Context, cmd RequestUploadURLs) ([]MediaUploadRes, error) {
 	createPostSession, err := cp.cacheRepo.GetUploadPostSession(ctx, cmd.AuthorID, cmd.SessionID.String())
 	if err != nil {
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
@@ -99,19 +90,19 @@ func (cp *CreatePostUC) ExecuteRequestUploadURLs(ctx context.Context, cmd Reques
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
 
-	var mediaUploads []MediaUpload
+	var mediaUploadRes []MediaUploadRes
 	for _, m := range mediaIDs {
 		url, err := cp.objectStorage.GetPresignedURLUpload(ctx, string(config.TempBucket), m.String(), time.Minute*30)
 		if err != nil {
 			return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 		}
-		mediaUploads = append(mediaUploads, MediaUpload{MediaID: m.String(), UploadURL: url})
+		mediaUploadRes = append(mediaUploadRes, MediaUploadRes{MediaID: m.String(), UploadURL: url})
 	}
 
 	if err := cp.cacheRepo.SetUploadPostSession(ctx, cmd.AuthorID, cmd.SessionID.String(), &createPostSession); err != nil {
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
-	return mediaUploads, nil
+	return mediaUploadRes, nil
 }
 
 func (cp *CreatePostUC) ExecuteCreatePostSession(ctx context.Context, cmd CreatePostSessionCmd) (CreatePostSessionRes, error) {
@@ -120,14 +111,14 @@ func (cp *CreatePostUC) ExecuteCreatePostSession(ctx context.Context, cmd Create
 		return CreatePostSessionRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 	}
 
-	var mediaUploads []MediaUpload
+	var mediaUploadRes []MediaUploadRes
 
 	for k, _ := range createPostSession.MediaIDs {
 		url, err := cp.objectStorage.GetPresignedURLUpload(ctx, string(config.TempBucket), k.String(), time.Minute*30)
 		if err != nil {
 			return CreatePostSessionRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 		}
-		mediaUploads = append(mediaUploads, MediaUpload{MediaID: k.String(), UploadURL: url})
+		mediaUploadRes = append(mediaUploadRes, MediaUploadRes{MediaID: k.String(), UploadURL: url})
 
 	}
 
@@ -137,7 +128,7 @@ func (cp *CreatePostUC) ExecuteCreatePostSession(ctx context.Context, cmd Create
 
 	return CreatePostSessionRes{
 		SessionID:    createPostSession.SessionID.String(),
-		MediaUploads: mediaUploads,
+		MediaUploads: mediaUploadRes,
 	}, nil
 }
 
@@ -153,111 +144,101 @@ func (cp *CreatePostUC) ExecuteUploadPost(ctx context.Context, cmd UploadPostCmd
 		cmd.Contents,
 		cmd.AspectRatio,
 	)
-
 	if err != nil {
 		return nil, err
 	}
 
 	cp.parseContent(ctx, post)
 
-	firstMedia := cmd.MediaIDs[0]
-
-	thumbnailID, err := cp.createPostThumbnail(ctx, firstMedia)
-	if err != nil {
-		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-	}
-	post.SetThumbnailID(*thumbnailID)
-
 	aw, ah := post.AspectRatio().Demensions()
 	mediaW := 1080
 	mediaH := (ah * 1080) / aw
 
+	thumbnailID := fmt.Sprintf("%s-thumbnail.jpeg", cmd.MediaUploads[0].MediaID.String())
+	post.SetThumbnailID(thumbnailID)
+	// firstMedia := cmd.MediaUploads[0]
+	// thumbnailJob := job.ProcessMediaJob{
+	// 	ObjectSrc: job.ObjectLocation{
+	// 		Bucket:   string(config.TempBucket),
+	// 		ObjectID: firstMedia.MediaID.String(),
+	// 	},
+	// 	MediaType: job.MediaType(firstMedia.Type),
+	// 	Tasks: []job.Task{
+
+	// 	},
+	// }
+	// go func() {
+	// 	if err := cp.postProducer.SendProcessMediaJob(context.Background(), thumbnailJob); err != nil {
+	// 		log.Println(err)
+	// 	}
+	// }()
+
+	lenOfmedias := len(cmd.MediaUploads)
 	var medias []domain.Media
-	for index, mediaID := range cmd.MediaIDs {
-		if _, ok := createPostSession.MediaIDs[mediaID]; !ok {
+	for i := 0; i < lenOfmedias; i++ {
+		if _, ok := createPostSession.MediaIDs[cmd.MediaUploads[i].MediaID]; !ok {
 			return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 		}
-		src, err := cp.objectStorage.GetObject(ctx, string(config.TempBucket), mediaID.String())
-		if err != nil {
-			return nil, err
+
+		newMediaID := GenNewMediaID(cmd.MediaUploads[i].MediaID.String(), cmd.MediaUploads[i].Type)
+
+		var taskType job.TaskType
+		if cmd.MediaUploads[i].Type == domain.Image {
+			taskType = job.ResizeImage
+		} else {
+			taskType = job.HLSVideo
 		}
 
-		buf := make([]byte, 262)
-		if _, err := io.ReadFull(src, buf); err != nil {
-			return nil, err
-		}
-
-		if _, err := src.Seek(0, io.SeekStart); err != nil {
-			return nil, err
-		}
-
-		if filetype.IsImage(buf) {
-			newImg, size, err := cp.processImage(ctx, src, mediaW, mediaH)
-			if err != nil {
-				return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-			}
-			if err := cp.objectStorage.PutObject(ctx, string(config.PostBucket), mediaID.String(), newImg, int64(size)); err != nil {
-				return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-			}
-
-			medias = append(medias,
-				domain.Media{
-					MediaID:      mediaID.String(),
-					Type:         domain.Image,
-					DisplayOrder: index + 1,
-					Width:        mediaW,
-					Height:       mediaH,
+		mediaJob := job.ProcessMediaJob{
+			ObjectSrc: job.ObjectLocation{
+				Bucket:   string(config.TempBucket),
+				ObjectID: cmd.MediaUploads[i].MediaID.String(),
+			},
+			MediaType: job.MediaType(cmd.MediaUploads[i].Type),
+			Tasks: []job.Task{
+				job.Task{
+					ObjectDes: job.ObjectLocation{
+						Bucket:   string(config.PostBucket),
+						ObjectID: newMediaID,
+					},
+					Param: job.TaskParam{
+						Width:  mediaW,
+						Height: mediaH,
+					},
+					TaskType: taskType,
 				},
-			)
-		} else if filetype.IsVideo(buf) {
-			url, err := cp.objectStorage.GetPresignedURLDownload(ctx, string(config.TempBucket), mediaID.String(), time.Minute*10)
-			if err != nil {
-				return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-			}
-
-			if err := cp.videoProcessor.HLS(url, mediaID.String()); err != nil {
-				return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-			}
-
-			medias = append(medias,
-				domain.Media{
-					MediaID:      fmt.Sprintf("%s/index.m3u8", mediaID),
-					Type:         domain.Video,
-					DisplayOrder: index + 1,
-					Width:        mediaW,
-					Height:       mediaH,
-				},
-			)
-
-			folderLocation := fmt.Sprintf("./internal/module/post/tmp/%s", mediaID)
-			entries, err := os.ReadDir(folderLocation)
-			if err != nil {
-				return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-			}
-
-			var contentType string
-
-			for _, entry := range entries {
-				objName := fmt.Sprintf("%s/%s", mediaID, entry.Name())
-				objPath := fmt.Sprintf("%s/%s", folderLocation, entry.Name())
-
-				switch {
-				case strings.HasSuffix(entry.Name(), ".m3u8"):
-					contentType = "application/vnd.apple.mpegurl"
-				case strings.HasSuffix(entry.Name(), ".ts"):
-					contentType = "video/mp2t"
-				default:
-					contentType = "application/octet-stream"
-				}
-
-				if err := cp.objectStorage.FPutObject(ctx, string(config.PostBucket), objName, objPath, contentType); err != nil {
-					return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-				}
-			}
-			if err := os.RemoveAll(fmt.Sprintf("./internal/module/post/tmp/%s", mediaID)); err != nil {
-				return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-			}
+			},
 		}
+
+		if i == 0 {
+			mediaJob.Tasks = append(mediaJob.Tasks, job.Task{
+				ObjectDes: job.ObjectLocation{
+					Bucket:   string(config.PostBucket),
+					ObjectID: thumbnailID,
+				},
+				Param: job.TaskParam{
+					Width:  mediaW,
+					Height: mediaH,
+				},
+				TaskType: job.ResizeImage,
+			})
+		}
+
+		go func() {
+			if err := cp.postProducer.SendProcessMediaJob(context.Background(), mediaJob); err != nil {
+				log.Println(err)
+			}
+		}()
+
+		medias = append(medias,
+			domain.Media{
+				MediaID:      newMediaID,
+				Type:         cmd.MediaUploads[i].Type,
+				DisplayOrder: i,
+				Width:        mediaW,
+				Height:       mediaH,
+			},
+		)
 	}
 
 	post.SetMedias(medias)
@@ -266,15 +247,27 @@ func (cp *CreatePostUC) ExecuteUploadPost(ctx context.Context, cmd UploadPostCmd
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
 
-	if err := cp.postProducer.SendPostEvent(ctx, domain.PostEvent{
-		AuthorID: cmd.AuthorID,
-		PostID:   *postId,
-		Action:   domain.Created,
-	}); err != nil {
-		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
-	}
+	go func() {
+		if err := cp.postProducer.SendPostEvent(context.Background(), domain.PostEvent{
+			AuthorID: cmd.AuthorID,
+			PostID:   *postId,
+			Action:   domain.Created,
+		}); err != nil {
+			log.Println(err)
+		}
+	}()
 
 	return postId, nil
+}
+
+func GenNewMediaID(currentMediaID string, mediaType domain.MediaType) string {
+	var extention string
+	if mediaType == domain.Image {
+		extention = ".jpeg"
+	} else {
+		extention = "/index.m3u8"
+	}
+	return fmt.Sprintf("%s%s", currentMediaID, extention)
 }
 
 func (cp *CreatePostUC) createPostThumbnail(ctx context.Context, mediaID uuid.UUID) (*string, error) {
@@ -311,7 +304,7 @@ func (cp *CreatePostUC) parseContent(ctx context.Context, p *domain.Post) {
 				p.Contents()[i].Type = domain.Text
 			} else {
 				p.AppendMention(*userID)
-				p.Contents()[i].Text = strconv.Itoa(int(*userID))
+				p.Contents()[i].Text = username
 			}
 
 		case domain.Hashtag:

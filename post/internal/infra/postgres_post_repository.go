@@ -128,7 +128,7 @@ func (pr *PostgresPostRepository) GetPost(ctx context.Context, postID int64) (do
 
 func (pr *PostgresPostRepository) getMediasByPostID(ctx context.Context, postID int64) ([]domain.MediaReadModel, error) {
 	mediasQuery := `SELECT 
-						id,
+						id AS m_id,
 						type,
 						media_id,
 						display_order,
@@ -136,7 +136,7 @@ func (pr *PostgresPostRepository) getMediasByPostID(ctx context.Context, postID 
 						height,
 						duration,
 						size,
-						created_at
+						created_at AS m_created_at
 					FROM content.medias
 					WHERE post_id = $1
 					ORDER BY display_order ASC;`
@@ -152,9 +152,6 @@ func (pr *PostgresPostRepository) getMediasByPostID(ctx context.Context, postID 
 		return []domain.MediaReadModel{}, fmt.Errorf("PostgresPostRepository.getMediasByPostID: %w", err)
 	}
 	return medias, nil
-}
-
-type Mentions struct {
 }
 
 func (pr *PostgresPostRepository) getMentionsByPostID(ctx context.Context, postID int64) (map[int64]string, error) {
@@ -218,35 +215,90 @@ func (pr *PostgresPostRepository) DeletePostByUserIDAndPostID(ctx context.Contex
 	return nil
 }
 
-func (pr *PostgresPostRepository) GetPostsByAuthorID(ctx context.Context, authorID int64, cursor int64, size int) ([]domain.PostGridItem, error) {
+func (pr *PostgresPostRepository) GetPostsByAuthorID(ctx context.Context, viewerID int64, authorID int64, cursor int64, size int) ([]domain.PostSummary, error) {
 	psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
-	qryBuilder := psql.
-		Select("id", "thumbnail_id", "media_count", "like_count", "comment_count", "created_at").
+	likeQry, likeArgs, err := squirrel.Expr("EXISTS(SELECT 1 FROM content.post_likes WHERE user_id = ? AND post_id = id) AS is_liked", viewerID).ToSql()
+
+	if err != nil {
+		return []domain.PostSummary{}, fmt.Errorf("PostgresPostRepository.GetPostsByAuthorID: %w", err)
+	}
+
+	postQry := psql.Select(
+		"id AS p_id",
+		"thumbnail_id",
+		"content",
+		"media_count",
+		"like_count",
+		"comment_count",
+		"created_at AS p_created_at").
+		Column(likeQry, likeArgs...).
 		From("content.posts").
 		Where(squirrel.Eq{"author_id": authorID}).
-		OrderBy("created_at DESC").
 		Limit(uint64(size))
 
 	if cursor != 0 {
-		qryBuilder = qryBuilder.Where("created_at < to_timestamp(?)", cursor)
+		postQry = postQry.Where("p.created_at < to_timestamp(?)", cursor)
 	}
 
-	qry, args, err := qryBuilder.ToSql()
+	qryPostMediaBuilder := psql.
+		Select(
+			"p.p_id",
+			"p.thumbnail_id",
+			"p.content",
+			"p.media_count",
+			"p.like_count",
+			"p.comment_count",
+			"p.is_liked",
+			"p.p_created_at",
+
+			"m.id AS m_id",
+			"m.type",
+			"m.media_id",
+			"m.display_order",
+			"m.width",
+			"m.height",
+			"m.duration",
+			"m.size",
+			"m.created_at AS media_created_at").
+		FromSelect(postQry, "p").
+		LeftJoin("content.medias AS m ON m.post_id = p.p_id").
+		OrderBy("p.p_created_at DESC, m.display_order ASC")
+
+	qry, args, err := qryPostMediaBuilder.ToSql()
 	if err != nil {
-		return []domain.PostGridItem{}, fmt.Errorf("PostgresPostRepository.GetPostsByAuthorID: %w", err)
+		return []domain.PostSummary{}, fmt.Errorf("PostgresPostRepository.GetPostsByAuthorID: %w", err)
 	}
 
 	rows, err := pr.conn.Query(ctx, qry, args...)
 	if err != nil {
-		return []domain.PostGridItem{}, fmt.Errorf("PostgresPostRepository.GetPostsByAuthorID: %w", err)
+		return []domain.PostSummary{}, fmt.Errorf("PostgresPostRepository.GetPostsByAuthorID: %w", err)
 	}
 	defer rows.Close()
 
-	posts, err := pgx.CollectRows[domain.PostGridItem](rows, pgx.RowToStructByName)
-	if err != nil {
-		return []domain.PostGridItem{}, fmt.Errorf("PostgresPostRepository.GetPostsByAuthorID: %w", err)
+	postIndex := map[int64]int{}
+	posts := make([]domain.PostSummary, 0, size)
+	for rows.Next() {
+		post := domain.PostSummary{}
+		media := domain.MediaReadModel{}
+
+		if err := rows.Scan(
+			&post.ID, &post.ThumbnailID, &post.Content, &post.MediaCount, &post.LikeCount, &post.CommentCount, &post.IsLiked, &post.CreatedAt,
+			&media.ID, &media.Type, &media.MediaID, &media.DisplayOrder, &media.Width, &media.Height, &media.Duration, &media.Size, &media.CreatedAt,
+		); err != nil {
+			return []domain.PostSummary{}, fmt.Errorf("PostgresPostRepository.GetPostsByAuthorID: %w", err)
+		}
+
+		index, exists := postIndex[post.ID]
+		if !exists {
+			posts = append(posts, post)
+			index = len(posts) - 1
+			postIndex[post.ID] = index
+		}
+
+		posts[index].Medias = append(posts[index].Medias, media)
 	}
+
 	return posts, nil
 }
 
@@ -276,7 +328,7 @@ func (p *PostgresPostRepository) DeleteLikePost(ctx context.Context, userID int6
 	return nil
 }
 
-func (pr *PostgresPostRepository) GetRepostsByUsername(ctx context.Context, username string) ([]domain.PostGridItem, error) {
+func (pr *PostgresPostRepository) GetRepostsByUsername(ctx context.Context, username string) ([]domain.PostSummary, error) {
 	qry := `SELECT 
 					p.id,
 					p.thumbnail_id,
@@ -292,13 +344,13 @@ func (pr *PostgresPostRepository) GetRepostsByUsername(ctx context.Context, user
 
 	rows, err := pr.conn.Query(ctx, qry, username)
 	if err != nil {
-		return []domain.PostGridItem{}, fmt.Errorf("GetPostByUsername.GetPostsByUsername: %w", err)
+		return []domain.PostSummary{}, fmt.Errorf("GetPostByUsername.GetPostsByUsername: %w", err)
 	}
 	defer rows.Close()
 
-	posts, err := pgx.CollectRows[domain.PostGridItem](rows, pgx.RowToStructByName)
+	posts, err := pgx.CollectRows[domain.PostSummary](rows, pgx.RowToStructByName)
 	if err != nil {
-		return []domain.PostGridItem{}, fmt.Errorf("GetPostByUsername.GetPostsByUsername: %w", err)
+		return []domain.PostSummary{}, fmt.Errorf("GetPostByUsername.GetPostsByUsername: %w", err)
 	}
 	return posts, nil
 }
@@ -355,3 +407,13 @@ func (p *PostgresPostRepository) UpadateBatchLikeCount(ctx context.Context, list
 
 // func (p *PostgresPostRepository) UpadateBatchRepostCount(ctx context.Context, list map[int64]int64) error {
 // }
+func (p *PostgresPostRepository) GetLikeCount(ctx context.Context, postID int64) (int64, error) {
+	qry := `SELECT like_count FROM content.posts where id = $1`
+
+	var likeCount int64
+	if err := p.conn.QueryRow(ctx, qry, postID).Scan(&likeCount); err != nil {
+		return 0, fmt.Errorf("PostgresPostRepository.GetLikeCount: %w", err)
+	}
+
+	return likeCount, nil
+}
