@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package post;
+
+option go_package = "github.com/htan06/Moments/grpc/post";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+message GetBatchPostsReq {
+  repeated int64 ids = 1;
+}
+
+message Post {
+    int64 id = 1;
+    int64 author_id = 2;
+
+    Visibility visibility = 3;
+
+    repeated Content contents = 4;
+
+    string thumbnail_id = 6;
+
+    repeated Media medias = 7;
+
+    repeated int64 mentions = 8;
+
+    repeated string hash_tags = 9;
+
+    int32 like_count = 10;
+    int32 media_count = 11;
+    int32 comment_count = 12;
+
+    google.protobuf.Timestamp created_at = 13;
+    google.protobuf.Timestamp updated_at = 14;
+}
+
+message Media {
+    int64 id = 1;
+    string media_id = 2;
+    MediaType type = 3;
+
+    int32 display_order = 4;
+
+    int32 width = 5;
+    int32 height = 6;
+
+    google.protobuf.Duration duration = 7;
+
+    int64 size = 8;
+}
+
+message Content {
+    NodeType type = 1;
+    string text = 2;
+}
+
+enum NodeType {
+    NODE_TYPE_UNSPECIFIED = 0;
+    NODE_TYPE_TEXT = 1;
+    NODE_TYPE_MENTION = 2;
+    NODE_TYPE_HASHTAG = 3;
+}
+
+enum MediaType {
+    MEDIA_TYPE_UNSPECIFIED = 0;
+    MEDIA_TYPE_IMAGE = 1;
+    MEDIA_TYPE_VIDEO = 2;
+}
+
+enum Visibility {
+    VISIBILITY_UNSPECIFIED = 0;
+    VISIBILITY_PRIVATE = 1;
+    VISIBILITY_PUBLIC = 2;
+    VISIBILITY_FRIEND = 3;
+}
+
+message GetBatchPostsResp {
+  repeated Post posts = 1;
+}
+
+service GetBatchPostsFeature {
+  rpc Execute(GetBatchPostsReq) returns (GetBatchPostsResp) {}
+}
