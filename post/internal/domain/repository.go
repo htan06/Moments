@@ -3,7 +3,6 @@ package domain
 import (
 	"context"
 	"io"
-	"time"
 )
 
 type UserRepository interface {
@@ -27,13 +26,8 @@ type PostRepository interface {
 	GetLikeCount(ctx context.Context, postID int64) (int64, error)
 }
 
-type ObjectStorage interface {
-	GetPresignedURLDownload(ctx context.Context, bucketName string, objName string, ttl time.Duration) (string, error)
-	GetPresignedURLUpload(ctx context.Context, bucketName string, objName string, ttl time.Duration) (string, error)
-	GetObject(ctx context.Context, bucketName string, objName string) (io.ReadSeekCloser, error)
-	PromotePostImage(ctx context.Context, objName string) error
-	PutObject(ctx context.Context, bucketName string, objName string, file io.Reader, size int64) error
-	FPutObject(ctx context.Context, bucketName string, objName string, filePath string, contentType string) error
+type MediaStorage interface {
+	GetPresignedURLUpload(ctx context.Context, objName string) (string, error)
 }
 
 type CacheRepository interface {

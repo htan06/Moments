@@ -3,10 +3,8 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/htan06/Moments/post/config"
@@ -52,7 +50,7 @@ type CreatePostSessionRes struct {
 type CreatePostUC struct {
 	postRepo       domain.PostRepository
 	userRepo       domain.UserRepository
-	objectStorage  domain.ObjectStorage
+	mediaStorage   domain.MediaStorage
 	cacheRepo      domain.CacheRepository
 	imgProcessor   domain.ProcessImg
 	videoProcessor domain.ProcessVideo
@@ -62,7 +60,7 @@ type CreatePostUC struct {
 func NewCreatePostUC(
 	postRepo domain.PostRepository,
 	userRepo domain.UserRepository,
-	objectStorage domain.ObjectStorage,
+	mediaStorage domain.MediaStorage,
 	cacheRepo domain.CacheRepository,
 	imgProcessor domain.ProcessImg,
 	videoProcessor domain.ProcessVideo,
@@ -71,7 +69,7 @@ func NewCreatePostUC(
 	return &CreatePostUC{
 		postRepo:       postRepo,
 		userRepo:       userRepo,
-		objectStorage:  objectStorage,
+		mediaStorage:   mediaStorage,
 		cacheRepo:      cacheRepo,
 		imgProcessor:   imgProcessor,
 		videoProcessor: videoProcessor,
@@ -92,7 +90,7 @@ func (cp *CreatePostUC) ExecuteRequestUploadURLs(ctx context.Context, cmd Reques
 
 	var mediaUploadRes []MediaUploadRes
 	for _, m := range mediaIDs {
-		url, err := cp.objectStorage.GetPresignedURLUpload(ctx, string(config.TempBucket), m.String(), time.Minute*30)
+		url, err := cp.mediaStorage.GetPresignedURLUpload(ctx, m.String())
 		if err != nil {
 			return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 		}
@@ -112,9 +110,8 @@ func (cp *CreatePostUC) ExecuteCreatePostSession(ctx context.Context, cmd Create
 	}
 
 	var mediaUploadRes []MediaUploadRes
-
 	for k, _ := range createPostSession.MediaIDs {
-		url, err := cp.objectStorage.GetPresignedURLUpload(ctx, string(config.TempBucket), k.String(), time.Minute*30)
+		url, err := cp.mediaStorage.GetPresignedURLUpload(ctx, k.String())
 		if err != nil {
 			return CreatePostSessionRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 		}
@@ -156,22 +153,6 @@ func (cp *CreatePostUC) ExecuteUploadPost(ctx context.Context, cmd UploadPostCmd
 
 	thumbnailID := fmt.Sprintf("%s-thumbnail.jpeg", cmd.MediaUploads[0].MediaID.String())
 	post.SetThumbnailID(thumbnailID)
-	// firstMedia := cmd.MediaUploads[0]
-	// thumbnailJob := job.ProcessMediaJob{
-	// 	ObjectSrc: job.ObjectLocation{
-	// 		Bucket:   string(config.TempBucket),
-	// 		ObjectID: firstMedia.MediaID.String(),
-	// 	},
-	// 	MediaType: job.MediaType(firstMedia.Type),
-	// 	Tasks: []job.Task{
-
-	// 	},
-	// }
-	// go func() {
-	// 	if err := cp.postProducer.SendProcessMediaJob(context.Background(), thumbnailJob); err != nil {
-	// 		log.Println(err)
-	// 	}
-	// }()
 
 	lenOfmedias := len(cmd.MediaUploads)
 	var medias []domain.Media
@@ -270,30 +251,6 @@ func GenNewMediaID(currentMediaID string, mediaType domain.MediaType) string {
 	return fmt.Sprintf("%s%s", currentMediaID, extention)
 }
 
-func (cp *CreatePostUC) createPostThumbnail(ctx context.Context, mediaID uuid.UUID) (*string, error) {
-
-	media, err := cp.objectStorage.GetObject(ctx, string(config.TempBucket), mediaID.String())
-	if err != nil {
-		return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
-	}
-
-	thumbnail, size, err := cp.imgProcessor.Resize(media, 300, 400)
-	if err != nil {
-		return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
-	}
-
-	randID, err := uuid.NewRandom()
-	if err != nil {
-		return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
-	}
-
-	thubmnailID := randID.String()
-	if err := cp.objectStorage.PutObject(ctx, string(config.PostBucket), thubmnailID, thumbnail, int64(size)); err != nil {
-		return nil, fmt.Errorf("CreatePostUC.createPostThumbnail: %w", err)
-	}
-	return &thubmnailID, nil
-}
-
 func (cp *CreatePostUC) parseContent(ctx context.Context, p *domain.Post) {
 	for i := range p.Contents() {
 		switch p.Contents()[i].Type {
@@ -313,22 +270,4 @@ func (cp *CreatePostUC) parseContent(ctx context.Context, p *domain.Post) {
 			p.Contents()[i].Text = hashtag
 		}
 	}
-}
-
-func (cp *CreatePostUC) processImage(ctx context.Context, imageSrc io.Reader, width int, height int) (io.Reader, int, error) {
-	media, size, err := cp.imgProcessor.Resize(imageSrc, width, height)
-	if err != nil {
-		return nil, 0, fmt.Errorf("CreatePostUC.processImage: %w", err)
-	}
-
-	return media, size, err
-}
-
-func (cp *CreatePostUC) processVideo(ctx context.Context, videoSrc io.Reader, width int, height int) (io.Reader, int, error) {
-	media, size, err := cp.imgProcessor.Resize(videoSrc, width, height)
-	if err != nil {
-		return nil, 0, fmt.Errorf("CreatePostUC.processImage: %w", err)
-	}
-
-	return media, size, err
 }
