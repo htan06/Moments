@@ -64,11 +64,7 @@ func (cau *ChangeAvatarUsecase) ExecuteCompletedUpload(ctx context.Context, user
 	}
 
 	if avatarID == nil {
-		rand, err := uuid.NewRandom()
-		if err != nil {
-			return "", fmt.Errorf("ChangeAvatarUsecase.ExecuteGetUrlUpload: %w", err)
-		}
-		id := fmt.Sprintf("%s.jpeg", rand.String())
+		id := fmt.Sprintf("%s.jpeg", newAvatarID)
 		avatarID = &id
 	}
 

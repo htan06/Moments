@@ -13,7 +13,8 @@ import (
 type PostHandler struct {
 	createPostUC       *usecase.CreatePostUC
 	getPostUC          *usecase.GetPostUC
-	petPostsByCursorUC *usecase.GetPostsByCursorUC
+	getPostsByCursorUC *usecase.GetPostsByCursorUC
+	getFollowingFeed   *usecase.GetFollowingFeedUC
 	deletePostUC       *usecase.DeletePostUC
 
 	likePostUC   *usecase.LikePostUC
@@ -27,7 +28,8 @@ type PostHandler struct {
 func NewPostHandler(
 	createPostUC *usecase.CreatePostUC,
 	getPostUC *usecase.GetPostUC,
-	petPostsByCursorUC *usecase.GetPostsByCursorUC,
+	getPostsByCursorUC *usecase.GetPostsByCursorUC,
+	getFollowingFeed *usecase.GetFollowingFeedUC,
 	deletePostUC *usecase.DeletePostUC,
 	likePostUC *usecase.LikePostUC,
 	unlikePostUC *usecase.UnlikePostUC,
@@ -38,13 +40,15 @@ func NewPostHandler(
 	return &PostHandler{
 		createPostUC:       createPostUC,
 		getPostUC:          getPostUC,
-		petPostsByCursorUC: petPostsByCursorUC,
-		deletePostUC:       deletePostUC,
-		likePostUC:         likePostUC,
-		unlikePostUC:       unlikePostUC,
-		getUserRepostsUC:   getRepostsUC,
-		createRepostUC:     createRepostUC,
-		deleteRepostUC:     deleteRepostUC,
+		getPostsByCursorUC: getPostsByCursorUC,
+		getFollowingFeed:   getFollowingFeed,
+
+		deletePostUC:     deletePostUC,
+		likePostUC:       likePostUC,
+		unlikePostUC:     unlikePostUC,
+		getUserRepostsUC: getRepostsUC,
+		createRepostUC:   createRepostUC,
+		deleteRepostUC:   deleteRepostUC,
 	}
 }
 
@@ -219,7 +223,32 @@ func (ph *PostHandler) HandleGetPosts(c *gin.Context) {
 	}
 	qry.ViewerID = currentUser.ID()
 
-	resp, err := ph.petPostsByCursorUC.Execute(ctx, qry)
+	resp, err := ph.getPostsByCursorUC.Execute(ctx, qry)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func (ph *PostHandler) HandleGetFollowingFeed(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	currentUser, exists := GetCurrentUser(c)
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	var qry usecase.GetFollowingFeedQry
+	if err := c.ShouldBindQuery(&qry); err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+	qry.ViewerID = currentUser.ID()
+
+	resp, err := ph.getFollowingFeed.Execute(ctx, qry)
 	if err != nil {
 		HandleError(c, err)
 		return

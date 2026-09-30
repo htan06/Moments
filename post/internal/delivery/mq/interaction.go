@@ -1,4 +1,4 @@
-package worker
+package messagequeue
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 type InteractionWorker struct {
 	interactionConsumer domain.InteractionConsumer
 	postRepo            domain.PostRepository
-	cacheRepo           domain.CacheRepository
+	counterRepo           domain.CounterRepository
 	like                map[int64]int64
 	comment             map[int64]int64
 	repost              map[int64]int64
@@ -23,12 +23,12 @@ type InteractionWorker struct {
 func NewInteractionWorker(
 	interactionConsumer domain.InteractionConsumer,
 	postRepo domain.PostRepository,
-	cacheRepo domain.CacheRepository,
+	counterRepo domain.CounterRepository,
 ) *InteractionWorker {
 	return &InteractionWorker{
 		interactionConsumer: interactionConsumer,
 		postRepo:            postRepo,
-		cacheRepo:           cacheRepo,
+		counterRepo:           counterRepo,
 		like:                make(map[int64]int64),
 		comment:             make(map[int64]int64),
 		repost:              make(map[int64]int64),
@@ -100,7 +100,7 @@ func (i *InteractionWorker) updateLikeCount(ctx context.Context, postID int64, c
 
 	switch changeVal {
 	case 1:
-		if err := i.cacheRepo.IncPostLikes(ctx, postID); err != nil {
+		if err := i.counterRepo.IncPostLikes(ctx, postID); err != nil {
 			if appErr, ok := errors.AsType[*errs.Error](err); !ok || appErr.Code != errs.PostLikeCacheNotFound {
 				return fmt.Errorf("InteractionWorker.updateLikeCount: %w", err)
 			}
@@ -112,12 +112,12 @@ func (i *InteractionWorker) updateLikeCount(ctx context.Context, postID int64, c
 
 			likeCount := likeCountDB + i.like[postID]
 
-			if err := i.cacheRepo.SetPostLikesIfNotExists(ctx, postID, int(likeCount)); err != nil {
+			if err := i.counterRepo.SetPostLikesIfNotExists(ctx, postID, int(likeCount)); err != nil {
 				return fmt.Errorf("InteractionWorker.updateLikeCount: %w", err)
 			}
 		}
 	case -1:
-		if err := i.cacheRepo.DecPostLikes(ctx, postID); err != nil {
+		if err := i.counterRepo.DecPostLikes(ctx, postID); err != nil {
 			if appErr, ok := errors.AsType[*errs.Error](err); !ok || appErr.Code != errs.PostLikeCacheNotFound {
 				return fmt.Errorf("InteractionWorker.updateLikeCount: %w", err)
 			}
@@ -129,7 +129,7 @@ func (i *InteractionWorker) updateLikeCount(ctx context.Context, postID int64, c
 
 			likeCount := likeCountDB + i.like[postID]
 
-			if err := i.cacheRepo.SetPostLikesIfNotExists(ctx, postID, int(likeCount)); err != nil {
+			if err := i.counterRepo.SetPostLikesIfNotExists(ctx, postID, int(likeCount)); err != nil {
 				return fmt.Errorf("InteractionWorker.updateLikeCount: %w", err)
 			}
 		}

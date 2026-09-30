@@ -235,10 +235,11 @@ func (pr *PostgresPostRepository) GetPostsByAuthorID(ctx context.Context, viewer
 		Column(likeQry, likeArgs...).
 		From("content.posts").
 		Where(squirrel.Eq{"author_id": authorID}).
+		OrderBy("created_at DESC").
 		Limit(uint64(size))
 
 	if cursor != 0 {
-		postQry = postQry.Where("p.created_at < to_timestamp(?)", cursor)
+		postQry = postQry.Where("created_at < to_timestamp(?)", cursor)
 	}
 
 	qryPostMediaBuilder := psql.
@@ -416,4 +417,158 @@ func (p *PostgresPostRepository) GetLikeCount(ctx context.Context, postID int64)
 	}
 
 	return likeCount, nil
+}
+
+func (p *PostgresPostRepository) GetPostsByFollowing(ctx context.Context, viewerID int64, cursor int64, size int) ([]domain.PostAuth, error) {
+	psqlBuilder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+
+	likeQry, likeArgs, err := squirrel.Expr("EXISTS(SELECT 1 FROM content.post_likes pl WHERE pl.user_id = ? AND pl.post_id = p.id) AS is_liked", viewerID).ToSql()
+
+	if err != nil {
+		return []domain.PostAuth{}, fmt.Errorf("PostgresPostRepository.GetPostsByFollowing: %w", err)
+	}
+
+	selectPosts := psqlBuilder.
+		Select("p.id AS p_id",
+			"u.name AS author_name",
+			"u.username AS author_username",
+			"u.avatar_thumbnail_id AS author_avatar_thumbnail_id",
+			"p.thumbnail_id",
+			"p.content",
+			"p.media_count",
+			"p.like_count",
+			"p.comment_count",
+			// "is_liked",
+			"p.created_at AS p_created_at",
+
+			"m.id AS m_id",
+			"m.type",
+			"m.media_id",
+			"m.display_order",
+			"m.width",
+			"m.height",
+			"m.duration",
+			"m.size",
+			"m.created_at AS m_created_at").
+		Column(likeQry, likeArgs...).
+		FromSelect(psqlBuilder.
+			Select("following_id").
+			From("social.follows").
+			Where(squirrel.Eq{"follower_id": viewerID}), "f").
+		Join("content.posts AS p ON p.author_id = f.following_id").
+		LeftJoin("content.medias AS m ON m.post_id = p.id").
+		LeftJoin("profile.users AS u ON u.user_id = p.author_id").
+		OrderBy("p.created_at DESC, m.display_order ASC")
+
+	if cursor != 0 {
+		selectPosts = selectPosts.Where("p.created_at < to_timestamp(?)", cursor)
+	}
+
+	qry, args, err := selectPosts.ToSql()
+	if err != nil {
+		return []domain.PostAuth{}, fmt.Errorf("PostgresPostRepository.GetPostsByFollowing: %w", err)
+	}
+
+	rows, err := p.conn.Query(ctx, qry, args...)
+	if err != nil {
+		return []domain.PostAuth{}, fmt.Errorf("PostgresPostRepository.GetPostsByFollowing: %w", err)
+	}
+	defer rows.Close()
+
+	postIndex := map[int64]int{}
+	posts := make([]domain.PostAuth, 0, size)
+	for rows.Next() {
+		post := domain.PostAuth{}
+		media := domain.MediaReadModel{}
+
+		if err := rows.Scan(
+			&post.ID, &post.AuthorName, &post.AuthorUsername, &post.AuthorAvatarThumbnailID, &post.ThumbnailID, &post.Content, &post.MediaCount, &post.LikeCount, &post.CommentCount,  &post.CreatedAt,
+			&media.ID, &media.Type, &media.MediaID, &media.DisplayOrder, &media.Width, &media.Height, &media.Duration, &media.Size, &media.CreatedAt, &post.IsLiked,
+		); err != nil {
+			return []domain.PostAuth{}, fmt.Errorf("PostgresPostRepository.GetPostsByFollowing: %w", err)
+		}
+
+		index, exists := postIndex[post.ID]
+		if !exists {
+			posts = append(posts, post)
+			index = len(posts) - 1
+			postIndex[post.ID] = index
+		}
+
+		posts[index].Medias = append(posts[index].Medias, media)
+	}
+
+	return posts, nil
+}
+
+func (p *PostgresPostRepository) GetBatchPosts(ctx context.Context, viewerID int64, ids []int64) ([]domain.PostSummary, error) {
+	psqlBuilder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+
+	likeQry, likeArgs, err := squirrel.Expr("EXISTS(SELECT 1 FROM content.post_likes pl WHERE pl.user_id = ? AND pl.post_id = p.id) AS is_liked", viewerID).ToSql()
+
+	if err != nil {
+		return []domain.PostSummary{}, fmt.Errorf("PostgresPostRepository.GetPostsByFollowing: %w", err)
+	}
+
+	selectPosts := psqlBuilder.
+		Select("p.id AS p_id",
+			"p.thumbnail_id",
+			"p.content",
+			"p.media_count",
+			"p.like_count",
+			"p.comment_count",
+			// "is_liked",
+			"p.created_at AS p_created_at",
+
+			"m.id AS m_id",
+			"m.type",
+			"m.media_id",
+			"m.display_order",
+			"m.width",
+			"m.height",
+			"m.duration",
+			"m.size",
+			"m.created_at AS m_created_at").
+		Column(likeQry, likeArgs...).
+		From("content.posts AS p").
+		LeftJoin("content.medias AS m ON m.post_id = p.id").
+		OrderBy("p.created_at DESC, m.display_order ASC").
+		Where(squirrel.Eq{"id": ids})
+
+
+	qry, args, err := selectPosts.ToSql()
+	if err != nil {
+		return []domain.PostSummary{}, fmt.Errorf("PostgresPostRepository.GetPostsByFollowing: %w", err)
+	}
+
+	rows, err := p.conn.Query(ctx, qry, args...)
+	if err != nil {
+		return []domain.PostSummary{}, fmt.Errorf("PostgresPostRepository.GetPostsByFollowing: %w", err)
+	}
+	defer rows.Close()
+
+	postIndex := map[int64]int{}
+	posts := make([]domain.PostSummary, 0)
+	for rows.Next() {
+		post := domain.PostSummary{}
+		media := domain.MediaReadModel{}
+
+		if err := rows.Scan(
+			&post.ID, &post.ThumbnailID, &post.Content, &post.MediaCount, &post.LikeCount, &post.CommentCount,  &post.CreatedAt,
+			&media.ID, &media.Type, &media.MediaID, &media.DisplayOrder, &media.Width, &media.Height, &media.Duration, &media.Size, &media.CreatedAt, &post.IsLiked,
+		); err != nil {
+			return []domain.PostSummary{}, fmt.Errorf("PostgresPostRepository.GetPostsByFollowing: %w", err)
+		}
+
+		index, exists := postIndex[post.ID]
+		if !exists {
+			posts = append(posts, post)
+			index = len(posts) - 1
+			postIndex[post.ID] = index
+		}
+
+		posts[index].Medias = append(posts[index].Medias, media)
+	}
+
+	return posts, nil
 }

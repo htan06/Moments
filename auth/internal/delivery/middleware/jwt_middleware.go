@@ -48,7 +48,7 @@ func (jwtm *JWTMiddleware) RequireRefreshToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authorization := c.GetHeader("Authorization")
 		parts := strings.Split(authorization, " ")
-		if parts[0] != "Bearer" || len(parts) < 2 {
+		if parts[0] != "Bearer" || len(parts) != 2 {
 			return
 		}
 
@@ -61,7 +61,7 @@ func (jwtm *JWTMiddleware) RequireRefreshToken() gin.HandlerFunc {
 			return
 		}
 
-		currentUser := handler.NewCurrentUser(claim.UserID, claim.Subject, string(claim.UserStatus), "")
+		currentUser := handler.NewCurrentUser(claim.UserID, claim.Subject, claim.UserStatus, claim.Username)
 
 		c.Set("currentUser", currentUser)
 	}

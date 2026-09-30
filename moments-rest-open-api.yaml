@@ -1,0 +1,724 @@
+openapi: 3.1.0
+info:
+  title: Module mặc định
+  description: ''
+  version: 1.0.0
+tags: []
+paths:
+  /api/v1/auth/require-otp:
+    post:
+      summary: require-otp
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+              required:
+                - email
+            examples: {}
+        required: true
+      responses:
+        '200':
+          description: ''
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security: []
+  /api/v1/auth/verify-otp:
+    post:
+      summary: verify-otp
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                otp:
+                  type: string
+              required:
+                - email
+                - otp
+            example:
+              email: email
+              otp: otp
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/register-response'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-response'
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security: []
+  /api/v1/auth/register:
+    post:
+      summary: register
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type:
+                    - string
+                    - 'null'
+                username:
+                  type: string
+                phone_number:
+                  type: string
+                register_token:
+                  type: string
+              required:
+                - first_name
+                - last_name
+                - username
+                - phone_number
+                - register_token
+            example:
+              first_name: aa
+              last_name: aa
+              username: aa
+              phone_number: '11'
+              register_token: aaa
+        required: true
+      responses:
+        '200':
+          description: ''
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '409':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-response'
+          headers: {}
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security: []
+  /api/v1/auth/refresh-token:
+    post:
+      summary: refresh-token
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+              required:
+                - refresh_token
+            example:
+              refresh_token: jwt_token
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                required:
+                  - access_token
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security: []
+  /api/v1/users/me/profile:
+    get:
+      summary: get-profile
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user-profile'
+          headers: {}
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+    patch:
+      summary: update-profile
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                avatar_url:
+                  type: string
+                cover_photo_url:
+                  type: string
+              required:
+                - first_name
+                - last_name
+                - avatar_url
+                - cover_photo_url
+            example:
+              first_name: aa
+              last_name: aa
+              avatar_url: aa
+              cover_photo_url: aa
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user-profile'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '409':
+          $ref: '#/components/responses/conflict'
+          description: ''
+        '422':
+          $ref: '#/components/responses/invalid'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+  /api/v1/users/me/setting/read-status:
+    patch:
+      summary: change-read-status
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                read_status:
+                  type: boolean
+              required:
+                - read_status
+            examples: {}
+        required: true
+      responses:
+        '200':
+          description: ''
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '409':
+          $ref: '#/components/responses/conflict'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+  /api/v1/users/me/username:
+    patch:
+      summary: update-username
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+              required:
+                - username
+            examples: {}
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                required:
+                  - username
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '409':
+          $ref: '#/components/responses/conflict'
+          description: ''
+        '422':
+          $ref: '#/components/responses/invalid'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+  /api/v1/users/{username}/profile:
+    get:
+      summary: find by username
+      deprecated: false
+      description: ''
+      tags: []
+      parameters:
+        - name: username
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user-profile'
+        '404':
+          $ref: '#/components/responses/not-found'
+          description: ''
+        '422':
+          $ref: '#/components/responses/invalid'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security: []
+  /api/v1/friend-requests/sent:
+    get:
+      summary: list-sent-friend-request
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/friend-request-profile'
+          headers: {}
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+  /api/v1/friend-requests/received:
+    get:
+      summary: list-received-friend-request
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/friend-request-profile'
+          headers: {}
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+  /api/v1/friend-requests:
+    post:
+      summary: sent-friend-request
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                receiver_id:
+                  type: integer
+              required:
+                - receiver_id
+            examples: {}
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/friend-request'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '404':
+          $ref: '#/components/responses/not-found'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+  /api/v1/friend-requests/{id}/accept:
+    post:
+      summary: accept-friend-request
+      deprecated: false
+      description: ''
+      tags: []
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: ''
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '404':
+          $ref: '#/components/responses/not-found'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+  /api/v1/friend-requests/{id}/reject:
+    post:
+      summary: reject-friend-request
+      deprecated: false
+      description: ''
+      tags: []
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: ''
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '404':
+          $ref: '#/components/responses/not-found'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+  /api/v1/friend-requests/{id}/cancel:
+    post:
+      summary: cancel-friend-request
+      deprecated: false
+      description: ''
+      tags: []
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: ''
+          headers: {}
+        '400':
+          $ref: '#/components/responses/bad-request'
+          description: ''
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '404':
+          $ref: '#/components/responses/not-found'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+  /api/v1/friends:
+    get:
+      summary: list-friends
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/user-profile'
+          headers: {}
+        '401':
+          $ref: '#/components/responses/unauthorized'
+          description: ''
+        '500':
+          $ref: '#/components/responses/internal-server-error'
+          description: ''
+      security:
+        - bearer-token: []
+webhooks: {}
+components:
+  schemas:
+    error-response:
+      type: object
+      properties:
+        error_codes:
+          type: array
+          items:
+            type: string
+      required:
+        - error_codes
+    register-response:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - REGISTER
+        register_token:
+          type: string
+      required:
+        - type
+        - register_token
+    login-response:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - LOGIN
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+      required:
+        - type
+        - access_token
+        - refresh_token
+    user-profile:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        avatar_url:
+          type: string
+        cover_photo_url:
+          type: string
+      required:
+        - id
+        - username
+        - first_name
+        - last_name
+        - avatar_url
+        - cover_photo_url
+    friend-request:
+      type: object
+      properties:
+        id:
+          type: integer
+        sender_id:
+          type: integer
+        receiver_id:
+          type: integer
+        created_at:
+          type: string
+        '':
+          type: string
+      required:
+        - id
+        - sender_id
+        - receiver_id
+        - created_at
+        - ''
+    friend-request-profile:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        username:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        avatar_url:
+          type: string
+        cover_photo_url:
+          type: string
+      required:
+        - id
+        - user_id
+        - username
+        - first_name
+        - last_name
+        - avatar_url
+        - cover_photo_url
+  responses:
+    internal-server-error:
+      description: ''
+      content: {}
+    unauthorized:
+      description: ''
+      content: {}
+    bad-request:
+      description: ''
+      content: {}
+    conflict:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error-response'
+    invalid:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error-response'
+    not-found:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error-response'
+  securitySchemes:
+    bearer-token:
+      type: http
+      scheme: bearer
+servers: []
+security: []

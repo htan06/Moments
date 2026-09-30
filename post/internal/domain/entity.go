@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/htan06/Moments/internal/errs"
+	"github.com/htan06/Moments/post/internal/errs"
 )
 
 type NodeType string
@@ -16,7 +16,7 @@ type Visibility string
 type AspectRatio struct {
 	Width  int
 	Height int
-}
+}	
 
 func NewAspectRatio(value string) (AspectRatio, error) {
 	parts := strings.Split(value, ":")
@@ -69,7 +69,6 @@ func (a AspectRatio) String() string {
 var supportedAspectRatios = map[AspectRatio]struct{}{
 	{Width: 1, Height: 1}:  {},
 	{Width: 3, Height: 4}:  {},
-	{Width: 3, Height: 5}:  {},
 	{Width: 4, Height: 3}:  {},
 	{Width: 5, Height: 3}:  {},
 	{Width: 16, Height: 9}: {},

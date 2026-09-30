@@ -2,6 +2,7 @@ package infra
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -24,7 +25,7 @@ func (rcr *RedisCacheRepository) SetUploadAvatarSession(ctx context.Context, key
 func (rcr *RedisCacheRepository) GetUploadAvatarSession(ctx context.Context, key string) (string, error) {
 	avatarID, err := rcr.conn.Get(ctx, key).Result()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("RedisCacheRepository.GetUploadAvatarSession: %w", err)
 	}
 
 	return avatarID, nil
@@ -32,7 +33,7 @@ func (rcr *RedisCacheRepository) GetUploadAvatarSession(ctx context.Context, key
 
 func (rcr *RedisCacheRepository) RemoveSession(ctx context.Context, key string) error {
 	if err := rcr.conn.Del(ctx, key).Err(); err != nil {
-		return err
+		return fmt.Errorf("RedisCacheRepository.GetUploadAvatarSession: %w", err)
 	}
 	return nil
 }

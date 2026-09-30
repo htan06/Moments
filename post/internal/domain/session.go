@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/htan06/Moments/internal/errs"
+	"github.com/htan06/Moments/post/internal/errs"
 )
 
 type CreatePostSession struct {

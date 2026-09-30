@@ -15,18 +15,18 @@ type LikePostCmd struct {
 
 type LikePostUC struct {
 	postRepo     domain.PostRepository
-	cacheRepo    domain.CacheRepository
+	// cacheRepo    domain.CacheRepository
 	postProducer domain.PostProducer
 }
 
 func NewLikePostUC(
 	postRepo domain.PostRepository,
-	cacheRepo domain.CacheRepository,
+	// cacheRepo domain.CacheRepository,
 	postProducer domain.PostProducer,
 ) *LikePostUC {
 	return &LikePostUC{
 		postRepo:     postRepo,
-		cacheRepo:    cacheRepo,
+		// cacheRepo:    cacheRepo,
 		postProducer: postProducer,
 	}
 }

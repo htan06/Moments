@@ -28,7 +28,6 @@ func (k *KafkaUserFollowConsumer) ReadMessage(ctx context.Context) (domain.Follo
 	if err != nil {
 		return domain.FollowEvent{}, fmt.Errorf("KafkaUserFollowConsumer.ReadMessage: %w", err)
 	}
-	defer k.reader.CommitMessages(ctx, m)
 
 	var followEvent domain.FollowEvent
 	if err := json.Unmarshal(m.Value, &followEvent); err != nil {

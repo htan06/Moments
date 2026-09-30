@@ -8,45 +8,36 @@ import (
 	"github.com/htan06/Moments/post/internal/domain"
 )
 
-type Direction string
-
-const (
-	Before Direction = "BEFORE"
-	After  Direction = "AFTER"
-)
-
-type GetPostsByCursorQry struct {
+type GetFollowingFeedQry struct {
 	ViewerID int64
-	AuthorID int64 `form:"author_id"`
 	Cursor   int64 `form:"cursor"`
 	Size     int   `form:"size"`
 }
 
-type GetPostsByCursorResp struct {
-	IsAuthor      bool                 `json:"is_author"`
-	Posts         []domain.PostSummary `json:"posts"`
-	CurrentCursor int64                `json:"current_cursor"`
+type GetFollowingFeedResp struct {
+	Posts         []domain.PostAuth `json:"posts"`
+	CurrentCursor int64             `json:"current_cursor"`
 }
 
-type GetPostsByCursorUC struct {
+type GetFollowingFeedUC struct {
 	postRepo    domain.PostRepository
 	counterRepo domain.CounterRepository
 }
 
-func NewGetPostsByCursorUC(
+func NewGetFollowingFeedUC(
 	postRepo domain.PostRepository,
 	counterRepo domain.CounterRepository,
-) *GetPostsByCursorUC {
-	return &GetPostsByCursorUC{
+) *GetFollowingFeedUC {
+	return &GetFollowingFeedUC{
 		postRepo:    postRepo,
 		counterRepo: counterRepo,
 	}
 }
 
-func (gp *GetPostsByCursorUC) Execute(ctx context.Context, qry GetPostsByCursorQry) (GetPostsByCursorResp, error) {
-	posts, err := gp.postRepo.GetPostsByAuthorID(ctx, qry.ViewerID, qry.AuthorID, qry.Cursor/1000000.0, qry.Size)
+func (uc *GetFollowingFeedUC) Execute(ctx context.Context, qry GetFollowingFeedQry) (GetFollowingFeedResp, error) {
+	posts, err := uc.postRepo.GetPostsByFollowing(ctx, qry.ViewerID, qry.Cursor/1000000.0, qry.Size)
 	if err != nil {
-		return GetPostsByCursorResp{}, fmt.Errorf("GetPostUC.Excute: %w", err)
+		return GetFollowingFeedResp{}, fmt.Errorf("GetPostUC.Excute: %w", err)
 	}
 
 	lenOfPost := len(posts)
@@ -63,9 +54,9 @@ func (gp *GetPostsByCursorUC) Execute(ctx context.Context, qry GetPostsByCursorQ
 		ids = append(ids, posts[i].ID)
 	}
 
-	postLike, err := gp.counterRepo.GetLikeCount(ctx, ids...)
+	postLike, err := uc.counterRepo.GetLikeCount(ctx, ids...)
 	if err != nil {
-		return GetPostsByCursorResp{}, fmt.Errorf("GetPostUC.Excute: %w", err)
+		return GetFollowingFeedResp{}, fmt.Errorf("GetPostUC.Excute: %w", err)
 	}
 
 	for i := range posts {
@@ -82,8 +73,7 @@ func (gp *GetPostsByCursorUC) Execute(ctx context.Context, qry GetPostsByCursorQ
 		cursor = 0
 	}
 
-	return GetPostsByCursorResp{
-		IsAuthor:      qry.ViewerID == qry.AuthorID,
+	return GetFollowingFeedResp{
 		Posts:         posts,
 		CurrentCursor: cursor,
 	}, nil

@@ -1,16 +1,16 @@
 package domain
 
-type PostEventType string
+type Action string
 
 const (
-	Created PostEventType = "CREATED"
-	Deleted PostEventType = "DELETED"
+	Created Action = "CREATED"
+	Deleted Action = "DELETED"
 )
 
 type PostEvent struct {
-	AuthorID int64         `json:"author_id"`
-	PostID   int64         `json:"post_id"`
-	Type     PostEventType `json:"type"`
+	AuthorID int64  `json:"author_id"`
+	PostID   int64  `json:"post_id"`
+	Action   Action `json:"action"`
 }
 
 type PostCreated struct {

@@ -5,9 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/htan06/Moments/post/internal/delivery/handler"
+	messagequeue "github.com/htan06/Moments/post/internal/delivery/mq"
 	"github.com/htan06/Moments/post/internal/infra"
 	"github.com/htan06/Moments/post/internal/usecase"
-	"github.com/htan06/Moments/post/internal/worker"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/redis/go-redis/v9"
@@ -24,26 +24,26 @@ func InitPostModule(
 ) *PostModule {
 	postRepo := infra.NewPostgresPostRepository(postgresConn)
 	userRepo := infra.NewPostgresUserRepository(postgresConn)
-	cacheRepo := infra.NewRedisCacheRepository(redisConn)
+	sessionRepo := infra.NewRedisSessionRepository(redisConn)
+	counterRepo := infra.NewRedisCounterRepository(redisConn)
 	objectStorage := infra.NewMinIOStorage(storageConn)
-	imgProcessor := infra.NewGoVipsProcessImg()
-	videoProcessor := infra.NewFfmpegProcessVideo()
 	postProducer := infra.NewKafkaPostProducer()
 	interactionConsumer := infra.NewKafkaInteractionConsumer()
 
 	handler := handler.NewPostHandler(
-		usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, cacheRepo, imgProcessor, videoProcessor, postProducer),
+		usecase.NewCreatePostUC(postRepo, userRepo, objectStorage, sessionRepo, postProducer),
 		usecase.NewGetPostUC(postRepo),
-		usecase.NewGetPostsByCursorUC(postRepo, cacheRepo),
+		usecase.NewGetPostsByCursorUC(postRepo, counterRepo),
+		usecase.NewGetFollowingFeedUC(postRepo, counterRepo),
 		usecase.NewDeletePostUC(postRepo, postProducer),
-		usecase.NewLikePostUC(postRepo, cacheRepo, postProducer),
+		usecase.NewLikePostUC(postRepo, postProducer),
 		usecase.NewUnlikePostUC(postRepo, postProducer),
 		usecase.NewGetRepostsUC(postRepo),
 		usecase.NewCreateRepostUC(postRepo),
 		usecase.NewDeleteRepostUC(postRepo),
 	)
 
-	interacionWorker := worker.NewInteractionWorker(interactionConsumer, postRepo, cacheRepo)
+	interacionWorker := messagequeue.NewInteractionWorker(interactionConsumer, postRepo, counterRepo)
 	go interacionWorker.Run(context.Background())
 
 	return &PostModule{
@@ -75,4 +75,6 @@ func (pm *PostModule) RegisterRouter(
 	repost.DELETE("/:repostID", pm.postHandler.HandleDeleteRepost)
 	repost.POST("", pm.postHandler.HandleCreateRepost)
 	repost.GET("", pm.postHandler.HandleGetRepostsByUsername)
+
+	post.GET("/feed/following", pm.postHandler.HandleGetFollowingFeed)
 }

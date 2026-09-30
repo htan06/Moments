@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/htan06/Moments/post/config"
 	"github.com/htan06/Moments/post/internal/application"
-	"github.com/htan06/Moments/post/internal/delivery/middleware"
+	"github.com/htan06/Moments/post/internal/delivery/handler/middleware"
 	"github.com/joho/godotenv"
 )
 

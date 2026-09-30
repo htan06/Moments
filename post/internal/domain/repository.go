@@ -2,7 +2,6 @@ package domain
 
 import (
 	"context"
-	"io"
 )
 
 type UserRepository interface {
@@ -24,27 +23,25 @@ type PostRepository interface {
 
 	UpadateBatchLikeCount(ctx context.Context, list map[int64]int64) error
 	GetLikeCount(ctx context.Context, postID int64) (int64, error)
+
+	GetPostsByFollowing(ctx context.Context, viewerID int64, cursor int64, size int) ([]PostAuth, error)
+	GetBatchPosts(ctx context.Context, viewerID int64, ids []int64) ([]PostSummary, error)
 }
 
 type MediaStorage interface {
 	GetPresignedURLUpload(ctx context.Context, objName string) (string, error)
 }
 
-type CacheRepository interface {
-	SetUploadPostSession(ctx context.Context, userID int64, sessionID string, createPostSession *CreatePostSession) error
-	GetUploadPostSession(ctx context.Context, userID int64, sessionID string) (CreatePostSession, error)
+type CounterRepository interface {
 	IncPostLikes(ctx context.Context, postID int64) error
 	SetPostLikesIfNotExists(ctx context.Context, postID int64, likeCount int) error
 	DecPostLikes(ctx context.Context, postID int64) error
 	GetLikeCount(ctx context.Context, postIDs ...int64) (map[int64]int64, error)
 }
 
-type ProcessImg interface {
-	Resize(reader io.Reader, width int, height int) (io.Reader, int, error)
-}
-
-type ProcessVideo interface {
-	HLS(url string, des string) error
+type SessionRepository interface {
+	SetUploadPostSession(ctx context.Context, createPostSession *CreatePostSession) error
+	GetUploadPostSession(ctx context.Context, userID int64, sessionID string) (CreatePostSession, error)
 }
 
 type PostProducer interface {

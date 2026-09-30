@@ -1,6 +1,6 @@
 package domain
 
-import "github.com/htan06/Moments/internal/errs"
+import "github.com/htan06/Moments/post/internal/errs"
 
 const (
 	ReceiverNotFound      errs.ErrorCode = "RECEIVER_NOT_FOUND"

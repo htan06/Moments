@@ -51,9 +51,7 @@ type CreatePostUC struct {
 	postRepo       domain.PostRepository
 	userRepo       domain.UserRepository
 	mediaStorage   domain.MediaStorage
-	cacheRepo      domain.CacheRepository
-	imgProcessor   domain.ProcessImg
-	videoProcessor domain.ProcessVideo
+	sessionRepo    domain.SessionRepository
 	postProducer   domain.PostProducer
 }
 
@@ -61,24 +59,20 @@ func NewCreatePostUC(
 	postRepo domain.PostRepository,
 	userRepo domain.UserRepository,
 	mediaStorage domain.MediaStorage,
-	cacheRepo domain.CacheRepository,
-	imgProcessor domain.ProcessImg,
-	videoProcessor domain.ProcessVideo,
+	sessionRepo domain.SessionRepository,
 	postProducer domain.PostProducer,
 ) *CreatePostUC {
 	return &CreatePostUC{
 		postRepo:       postRepo,
 		userRepo:       userRepo,
 		mediaStorage:   mediaStorage,
-		cacheRepo:      cacheRepo,
-		imgProcessor:   imgProcessor,
-		videoProcessor: videoProcessor,
+		sessionRepo:    sessionRepo,
 		postProducer:   postProducer,
 	}
 }
 
 func (cp *CreatePostUC) ExecuteRequestUploadURLs(ctx context.Context, cmd RequestUploadURLs) ([]MediaUploadRes, error) {
-	createPostSession, err := cp.cacheRepo.GetUploadPostSession(ctx, cmd.AuthorID, cmd.SessionID.String())
+	createPostSession, err := cp.sessionRepo.GetUploadPostSession(ctx, cmd.AuthorID, cmd.SessionID.String())
 	if err != nil {
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
@@ -97,7 +91,7 @@ func (cp *CreatePostUC) ExecuteRequestUploadURLs(ctx context.Context, cmd Reques
 		mediaUploadRes = append(mediaUploadRes, MediaUploadRes{MediaID: m.String(), UploadURL: url})
 	}
 
-	if err := cp.cacheRepo.SetUploadPostSession(ctx, cmd.AuthorID, cmd.SessionID.String(), &createPostSession); err != nil {
+	if err := cp.sessionRepo.SetUploadPostSession(ctx, &createPostSession); err != nil {
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
 	return mediaUploadRes, nil
@@ -119,7 +113,7 @@ func (cp *CreatePostUC) ExecuteCreatePostSession(ctx context.Context, cmd Create
 
 	}
 
-	if err := cp.cacheRepo.SetUploadPostSession(ctx, createPostSession.UserID, createPostSession.SessionID.String(), createPostSession); err != nil {
+	if err := cp.sessionRepo.SetUploadPostSession(ctx, createPostSession); err != nil {
 		return CreatePostSessionRes{}, fmt.Errorf("CreatePostUC.ExecutePrepareUploadPost: %w", err)
 	}
 
@@ -130,7 +124,7 @@ func (cp *CreatePostUC) ExecuteCreatePostSession(ctx context.Context, cmd Create
 }
 
 func (cp *CreatePostUC) ExecuteUploadPost(ctx context.Context, cmd UploadPostCmd) (*int64, error) {
-	createPostSession, err := cp.cacheRepo.GetUploadPostSession(ctx, cmd.AuthorID, cmd.UpLoadSessionID)
+	createPostSession, err := cp.sessionRepo.GetUploadPostSession(ctx, cmd.AuthorID, cmd.UpLoadSessionID)
 	if err != nil {
 		return nil, fmt.Errorf("CreatePostUC.ExecuteCreatePost: %w", err)
 	}
@@ -198,8 +192,8 @@ func (cp *CreatePostUC) ExecuteUploadPost(ctx context.Context, cmd UploadPostCmd
 					ObjectID: thumbnailID,
 				},
 				Param: job.TaskParam{
-					Width:  mediaW,
-					Height: mediaH,
+					Width:  300,
+					Height: 400,
 				},
 				TaskType: job.ResizeImage,
 			})

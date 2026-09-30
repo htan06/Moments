@@ -29,7 +29,7 @@ func (u *UpdatePostCountUC) Run(ctx context.Context) {
 			continue
 		}
 
-		switch postEvent.Type {
+		switch postEvent.Action {
 		case domain.Created:
 			err = u.userRepo.IncPostCount(ctx, postEvent.AuthorID)
 		case domain.Deleted:
