@@ -9,6 +9,7 @@ import "google/protobuf/duration.proto";
 
 message GetBatchPostsReq {
   repeated int64 ids = 1;
+  int64 viewerID = 2;
 }
 
 message Post {

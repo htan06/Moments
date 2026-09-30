@@ -179,6 +179,7 @@ func (Visibility) EnumDescriptor() ([]byte, []int) {
 type GetBatchPostsReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ids           []int64                `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
+	ViewerID      int64                  `protobuf:"varint,2,opt,name=viewerID,proto3" json:"viewerID,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -218,6 +219,13 @@ func (x *GetBatchPostsReq) GetIds() []int64 {
 		return x.Ids
 	}
 	return nil
+}
+
+func (x *GetBatchPostsReq) GetViewerID() int64 {
+	if x != nil {
+		return x.ViewerID
+	}
+	return 0
 }
 
 type Post struct {
@@ -560,9 +568,10 @@ var File_get_posts_proto protoreflect.FileDescriptor
 
 const file_get_posts_proto_rawDesc = "" +
 	"\n" +
-	"\x0fget_posts.proto\x12\x04post\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\"$\n" +
+	"\x0fget_posts.proto\x12\x04post\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\"@\n" +
 	"\x10GetBatchPostsReq\x12\x10\n" +
-	"\x03ids\x18\x01 \x03(\x03R\x03ids\"\xec\x03\n" +
+	"\x03ids\x18\x01 \x03(\x03R\x03ids\x12\x1a\n" +
+	"\bviewerID\x18\x02 \x01(\x03R\bviewerID\"\xec\x03\n" +
 	"\x04Post\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\x03R\bauthorId\x120\n" +
