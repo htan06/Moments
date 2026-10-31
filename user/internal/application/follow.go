@@ -1,12 +1,13 @@
 package application
 
 import (
-	"user-service/internal/delivery/handler"
-	"user-service/internal/infra"
-	"user-service/internal/usecase"
+	"user-service/internal/adapter/inbound/handler"
+	"user-service/internal/adapter/outbound"
+	"user-service/internal/application/feature"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/segmentio/kafka-go"
 )
 
 type FollowModule struct {
@@ -15,17 +16,18 @@ type FollowModule struct {
 
 func InitFollowModule(
 	postgresConn *pgxpool.Pool,
+	kafkaWriterConfig kafka.WriterConfig,
 ) *FollowModule {
-	followRepo := infra.NewPostgresFollowRepository(postgresConn)
-	followProducer := infra.NewKafakFollowProducer()
+	followRepo := outbound.NewPostgresFollowRepository(postgresConn)
+	followProducer := outbound.NewKafakFollowProducer(kafkaWriterConfig)
 
-	createFollowUsecase := usecase.NewCreateFollowUsecase(followRepo, followProducer)
-	getFollowingUsecase := usecase.NewGetFollowingUsecase(followRepo)
-	getFollowersUsecase := usecase.NewGetFollowersUsecase(followRepo)
-	removeFollowerUsecase := usecase.NewRemovefollowerUsecase(followRepo, followProducer)
-	UnfollowUsecase := usecase.NewUnfollowUsecase(followRepo, followProducer)
+	createFollow := feature.NewCreateFollow(followRepo, followProducer)
+	getFollowing := feature.NewGetFollowing(followRepo)
+	getFollowers := feature.NewGetFollowers(followRepo)
+	removeFollower := feature.NewRemovefollower(followRepo, followProducer)
+	Unfollow := feature.NewUnfollow(followRepo, followProducer)
 
-	followHandler := handler.NewFollowHandler(createFollowUsecase, getFollowingUsecase, getFollowersUsecase, removeFollowerUsecase, UnfollowUsecase)
+	followHandler := handler.NewFollowHandler(createFollow, getFollowing, getFollowers, removeFollower, Unfollow)
 
 	return &FollowModule{
 		followHandler: followHandler,
@@ -43,6 +45,9 @@ func (fm *FollowModule) RegisterRouter(
 
 	me := r.Group("/users/me/follows")
 	me.POST("", requireAccessToken, requireActiveUser, fm.followHandler.HandlerCreateFollow)
-	me.DELETE("/:id/remove", requireAccessToken, requireActiveUser, fm.followHandler.HandlerRemoveFollower)
-	me.DELETE("/:id/unfollow", requireAccessToken, requireActiveUser, fm.followHandler.HandlerUnfollow)
+	
+	followers := r.Group("/users/me/followers")
+	followers.DELETE("/:followerID", requireAccessToken, requireActiveUser, fm.followHandler.HandlerRemoveFollower)
+	followings := r.Group("/users/me/followings")
+	followings.DELETE("/:followingID", requireAccessToken, requireActiveUser, fm.followHandler.HandlerUnfollow)
 }

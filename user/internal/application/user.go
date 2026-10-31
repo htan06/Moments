@@ -2,47 +2,49 @@ package application
 
 import (
 	"context"
-	"user-service/internal/delivery/handler"
-	"user-service/internal/infra"
-	"user-service/internal/usecase"
+	"user-service/internal/adapter/inbound/handler"
+	"user-service/internal/adapter/outbound"
+	"user-service/internal/application/feature"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/minio/minio-go/v7"
 	"github.com/redis/go-redis/v9"
+	"github.com/segmentio/kafka-go"
 )
 
 type UserModule struct {
-	userHandler       *handler.UserHandler
-	updatePostCountUC *usecase.UpdatePostCountUC
+	userHandler *handler.UserHandler
+	// updatePostCountUC *feature.UpdatePostCount
 }
 
 func InitUserModule(
 	ctx context.Context,
 	postgresConn *pgxpool.Pool,
 	redisConn *redis.Client,
-	storageConn *minio.Client,
+	storageConn *s3.Client,
+	kafkaWriterCfg kafka.WriterConfig,
 ) *UserModule {
-	userRepo := infra.NewPostgresUserRepository(postgresConn)
-	cacheRepo := infra.NewRedisCacheRepository(redisConn)
-	objectStorage := infra.NewMinIOStorage(storageConn)
-	processImg := infra.NewProcessImg()
-	userPostConsumer := infra.NewKafkaUserPostConsumer()
-	userFollowConsumer := infra.NewKafkaUserFollowConsumer()
+	userRepo := outbound.NewPostgresUserRepository(postgresConn)
+	cacheRepo := outbound.NewRedisCacheRepository(redisConn)
+	objectStorage := outbound.NewRustFSStorage(storageConn)
+	// userPostConsumer := inbound.NewKafkaUserPostConsumer()
+	// userFollowConsumer := inbound.NewKafkaUserFollowConsumer()
+	userProducer := outbound.NewKafakUserProducer(kafkaWriterCfg)
 
-	getProfileUsecase := usecase.NewGetProfileUsecase(userRepo)
-	updateProfileUsecase := usecase.NewUpdateProfileUsecase(userRepo)
-	changeAvatarUsecase := usecase.NewChangeAvatarUsecase(userRepo, cacheRepo, objectStorage, processImg)
-	searchUC := usecase.NewSearchUC(userRepo)
-	creaProfileUC := usecase.NewCreateProfileUC(userRepo)
+	getProfile := feature.NewGetProfile(userRepo)
+	updateProfile := feature.NewUpdateProfile(userRepo)
+	changeAvatar := feature.NewChangeAvatar(userRepo, cacheRepo, objectStorage, userProducer)
+	search := feature.NewSearch(userRepo)
+	creaProfile := feature.NewCreateProfile(userRepo)
 
-	userHandler := handler.NewUserHandler(creaProfileUC, getProfileUsecase, updateProfileUsecase, changeAvatarUsecase, searchUC)
+	userHandler := handler.NewUserHandler(creaProfile, getProfile, updateProfile, changeAvatar, search)
 
-	incPostCountUC := usecase.NewUpdatePostCountUC(userRepo, userPostConsumer)
-	updateFollowCount := usecase.NewUpdateFollowCountUC(userRepo, userFollowConsumer)
+	// incPostCount := feature.NewUpdatePostCount(userRepo, userPostConsumer)
+	// updateFollowCount := feature.NewUpdateFollowCount(userRepo, userFollowConsumer)
 
-	go incPostCountUC.Run(ctx)
-	go updateFollowCount.Run(ctx)
+	// go incPostCount.Run(ctx)
+	// go updateFollowCount.Run(ctx)
 
 	return &UserModule{
 		userHandler: userHandler,
