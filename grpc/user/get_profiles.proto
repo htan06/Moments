@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/htan06/Moments/moments-api/grpc/user";
+
+message Profile {
+  int64 userID = 1;
+  string username = 2;
+  string name = 3;
+  string avatar = 4;
+  string avatarThumbnail = 5;
+  string bio = 6;
+  int32 followersCount = 7;
+  int32 followingsCount = 8;
+  int32 postsCount = 9;
+}
+
+message GetProfilesInput {
+  repeated int64 id = 1;
+}
+
+message GetProfilesOutput {
+  repeated Profile profile = 1;
+}
+
+service UserService {
+    rpc GetProfiles(GetProfilesInput) returns (GetProfilesOutput) {}
+}
