@@ -12,11 +12,12 @@ message ProfileSummary {
 }
 
 message GetProfilesSummaryInput {
-  repeated int64 id = 1;
+  int64 currentUserID = 1;
+  repeated int64 ids = 2;
 }
 
 message GetProfilesSummaryOutput {
-  repeated ProfileSummary profile = 1;
+  repeated ProfileSummary profiles = 1;
 }
 
 service UserService {

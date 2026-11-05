@@ -91,7 +91,8 @@ func (x *ProfileSummary) GetAvatarThumbnail() string {
 
 type GetProfilesSummaryInput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            []int64                `protobuf:"varint,1,rep,packed,name=id,proto3" json:"id,omitempty"`
+	CurrentUserID int64                  `protobuf:"varint,1,opt,name=currentUserID,proto3" json:"currentUserID,omitempty"`
+	Ids           []int64                `protobuf:"varint,2,rep,packed,name=ids,proto3" json:"ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -126,16 +127,23 @@ func (*GetProfilesSummaryInput) Descriptor() ([]byte, []int) {
 	return file_get_profiles_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetProfilesSummaryInput) GetId() []int64 {
+func (x *GetProfilesSummaryInput) GetCurrentUserID() int64 {
 	if x != nil {
-		return x.Id
+		return x.CurrentUserID
+	}
+	return 0
+}
+
+func (x *GetProfilesSummaryInput) GetIds() []int64 {
+	if x != nil {
+		return x.Ids
 	}
 	return nil
 }
 
 type GetProfilesSummaryOutput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Profile       []*ProfileSummary      `protobuf:"bytes,1,rep,name=profile,proto3" json:"profile,omitempty"`
+	Profiles      []*ProfileSummary      `protobuf:"bytes,1,rep,name=profiles,proto3" json:"profiles,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -170,9 +178,9 @@ func (*GetProfilesSummaryOutput) Descriptor() ([]byte, []int) {
 	return file_get_profiles_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *GetProfilesSummaryOutput) GetProfile() []*ProfileSummary {
+func (x *GetProfilesSummaryOutput) GetProfiles() []*ProfileSummary {
 	if x != nil {
-		return x.Profile
+		return x.Profiles
 	}
 	return nil
 }
@@ -186,11 +194,12 @@ const file_get_profiles_proto_rawDesc = "" +
 	"\x06userID\x18\x01 \x01(\x03R\x06userID\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12(\n" +
-	"\x0favatarThumbnail\x18\x04 \x01(\tR\x0favatarThumbnail\")\n" +
-	"\x17GetProfilesSummaryInput\x12\x0e\n" +
-	"\x02id\x18\x01 \x03(\x03R\x02id\"J\n" +
-	"\x18GetProfilesSummaryOutput\x12.\n" +
-	"\aprofile\x18\x01 \x03(\v2\x14.user.ProfileSummaryR\aprofile2]\n" +
+	"\x0favatarThumbnail\x18\x04 \x01(\tR\x0favatarThumbnail\"Q\n" +
+	"\x17GetProfilesSummaryInput\x12$\n" +
+	"\rcurrentUserID\x18\x01 \x01(\x03R\rcurrentUserID\x12\x10\n" +
+	"\x03ids\x18\x02 \x03(\x03R\x03ids\"L\n" +
+	"\x18GetProfilesSummaryOutput\x120\n" +
+	"\bprofiles\x18\x01 \x03(\v2\x14.user.ProfileSummaryR\bprofiles2]\n" +
 	"\vUserService\x12N\n" +
 	"\vGetProfiles\x12\x1d.user.GetProfilesSummaryInput\x1a\x1e.user.GetProfilesSummaryOutput\"\x00B%Z#github.com/htan06/Moments/grpc/userb\x06proto3"
 
@@ -213,7 +222,7 @@ var file_get_profiles_proto_goTypes = []any{
 	(*GetProfilesSummaryOutput)(nil), // 2: user.GetProfilesSummaryOutput
 }
 var file_get_profiles_proto_depIdxs = []int32{
-	0, // 0: user.GetProfilesSummaryOutput.profile:type_name -> user.ProfileSummary
+	0, // 0: user.GetProfilesSummaryOutput.profiles:type_name -> user.ProfileSummary
 	1, // 1: user.UserService.GetProfiles:input_type -> user.GetProfilesSummaryInput
 	2, // 2: user.UserService.GetProfiles:output_type -> user.GetProfilesSummaryOutput
 	2, // [2:3] is the sub-list for method output_type
