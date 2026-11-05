@@ -21,35 +21,30 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type Profile struct {
+type ProfileSummary struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	UserID          int64                  `protobuf:"varint,1,opt,name=userID,proto3" json:"userID,omitempty"`
 	Username        string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	Name            string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Avatar          string                 `protobuf:"bytes,4,opt,name=avatar,proto3" json:"avatar,omitempty"`
-	AvatarThumbnail string                 `protobuf:"bytes,5,opt,name=avatarThumbnail,proto3" json:"avatarThumbnail,omitempty"`
-	Bio             string                 `protobuf:"bytes,6,opt,name=bio,proto3" json:"bio,omitempty"`
-	FollowersCount  int32                  `protobuf:"varint,7,opt,name=followersCount,proto3" json:"followersCount,omitempty"`
-	FollowingsCount int32                  `protobuf:"varint,8,opt,name=followingsCount,proto3" json:"followingsCount,omitempty"`
-	PostsCount      int32                  `protobuf:"varint,9,opt,name=postsCount,proto3" json:"postsCount,omitempty"`
+	AvatarThumbnail string                 `protobuf:"bytes,4,opt,name=avatarThumbnail,proto3" json:"avatarThumbnail,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *Profile) Reset() {
-	*x = Profile{}
+func (x *ProfileSummary) Reset() {
+	*x = ProfileSummary{}
 	mi := &file_get_profiles_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Profile) String() string {
+func (x *ProfileSummary) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Profile) ProtoMessage() {}
+func (*ProfileSummary) ProtoMessage() {}
 
-func (x *Profile) ProtoReflect() protoreflect.Message {
+func (x *ProfileSummary) ProtoReflect() protoreflect.Message {
 	mi := &file_get_profiles_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -61,95 +56,60 @@ func (x *Profile) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Profile.ProtoReflect.Descriptor instead.
-func (*Profile) Descriptor() ([]byte, []int) {
+// Deprecated: Use ProfileSummary.ProtoReflect.Descriptor instead.
+func (*ProfileSummary) Descriptor() ([]byte, []int) {
 	return file_get_profiles_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Profile) GetUserID() int64 {
+func (x *ProfileSummary) GetUserID() int64 {
 	if x != nil {
 		return x.UserID
 	}
 	return 0
 }
 
-func (x *Profile) GetUsername() string {
+func (x *ProfileSummary) GetUsername() string {
 	if x != nil {
 		return x.Username
 	}
 	return ""
 }
 
-func (x *Profile) GetName() string {
+func (x *ProfileSummary) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *Profile) GetAvatar() string {
-	if x != nil {
-		return x.Avatar
-	}
-	return ""
-}
-
-func (x *Profile) GetAvatarThumbnail() string {
+func (x *ProfileSummary) GetAvatarThumbnail() string {
 	if x != nil {
 		return x.AvatarThumbnail
 	}
 	return ""
 }
 
-func (x *Profile) GetBio() string {
-	if x != nil {
-		return x.Bio
-	}
-	return ""
-}
-
-func (x *Profile) GetFollowersCount() int32 {
-	if x != nil {
-		return x.FollowersCount
-	}
-	return 0
-}
-
-func (x *Profile) GetFollowingsCount() int32 {
-	if x != nil {
-		return x.FollowingsCount
-	}
-	return 0
-}
-
-func (x *Profile) GetPostsCount() int32 {
-	if x != nil {
-		return x.PostsCount
-	}
-	return 0
-}
-
-type GetProfilesInput struct {
+type GetProfilesSummaryInput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            []int64                `protobuf:"varint,1,rep,packed,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetProfilesInput) Reset() {
-	*x = GetProfilesInput{}
+func (x *GetProfilesSummaryInput) Reset() {
+	*x = GetProfilesSummaryInput{}
 	mi := &file_get_profiles_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetProfilesInput) String() string {
+func (x *GetProfilesSummaryInput) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetProfilesInput) ProtoMessage() {}
+func (*GetProfilesSummaryInput) ProtoMessage() {}
 
-func (x *GetProfilesInput) ProtoReflect() protoreflect.Message {
+func (x *GetProfilesSummaryInput) ProtoReflect() protoreflect.Message {
 	mi := &file_get_profiles_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -161,39 +121,39 @@ func (x *GetProfilesInput) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetProfilesInput.ProtoReflect.Descriptor instead.
-func (*GetProfilesInput) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetProfilesSummaryInput.ProtoReflect.Descriptor instead.
+func (*GetProfilesSummaryInput) Descriptor() ([]byte, []int) {
 	return file_get_profiles_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetProfilesInput) GetId() []int64 {
+func (x *GetProfilesSummaryInput) GetId() []int64 {
 	if x != nil {
 		return x.Id
 	}
 	return nil
 }
 
-type GetProfilesOutput struct {
+type GetProfilesSummaryOutput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Profile       []*Profile             `protobuf:"bytes,1,rep,name=profile,proto3" json:"profile,omitempty"`
+	Profile       []*ProfileSummary      `protobuf:"bytes,1,rep,name=profile,proto3" json:"profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetProfilesOutput) Reset() {
-	*x = GetProfilesOutput{}
+func (x *GetProfilesSummaryOutput) Reset() {
+	*x = GetProfilesSummaryOutput{}
 	mi := &file_get_profiles_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetProfilesOutput) String() string {
+func (x *GetProfilesSummaryOutput) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetProfilesOutput) ProtoMessage() {}
+func (*GetProfilesSummaryOutput) ProtoMessage() {}
 
-func (x *GetProfilesOutput) ProtoReflect() protoreflect.Message {
+func (x *GetProfilesSummaryOutput) ProtoReflect() protoreflect.Message {
 	mi := &file_get_profiles_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -205,12 +165,12 @@ func (x *GetProfilesOutput) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetProfilesOutput.ProtoReflect.Descriptor instead.
-func (*GetProfilesOutput) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetProfilesSummaryOutput.ProtoReflect.Descriptor instead.
+func (*GetProfilesSummaryOutput) Descriptor() ([]byte, []int) {
 	return file_get_profiles_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *GetProfilesOutput) GetProfile() []*Profile {
+func (x *GetProfilesSummaryOutput) GetProfile() []*ProfileSummary {
 	if x != nil {
 		return x.Profile
 	}
@@ -221,25 +181,18 @@ var File_get_profiles_proto protoreflect.FileDescriptor
 
 const file_get_profiles_proto_rawDesc = "" +
 	"\n" +
-	"\x12get_profiles.proto\x12\x04user\"\x97\x02\n" +
-	"\aProfile\x12\x16\n" +
+	"\x12get_profiles.proto\x12\x04user\"\x82\x01\n" +
+	"\x0eProfileSummary\x12\x16\n" +
 	"\x06userID\x18\x01 \x01(\x03R\x06userID\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x12\x16\n" +
-	"\x06avatar\x18\x04 \x01(\tR\x06avatar\x12(\n" +
-	"\x0favatarThumbnail\x18\x05 \x01(\tR\x0favatarThumbnail\x12\x10\n" +
-	"\x03bio\x18\x06 \x01(\tR\x03bio\x12&\n" +
-	"\x0efollowersCount\x18\a \x01(\x05R\x0efollowersCount\x12(\n" +
-	"\x0ffollowingsCount\x18\b \x01(\x05R\x0ffollowingsCount\x12\x1e\n" +
-	"\n" +
-	"postsCount\x18\t \x01(\x05R\n" +
-	"postsCount\"\"\n" +
-	"\x10GetProfilesInput\x12\x0e\n" +
-	"\x02id\x18\x01 \x03(\x03R\x02id\"<\n" +
-	"\x11GetProfilesOutput\x12'\n" +
-	"\aprofile\x18\x01 \x03(\v2\r.user.ProfileR\aprofile2O\n" +
-	"\vUserService\x12@\n" +
-	"\vGetProfiles\x12\x16.user.GetProfilesInput\x1a\x17.user.GetProfilesOutput\"\x00B1Z/github.com/htan06/Moments/moments-api/grpc/userb\x06proto3"
+	"\x04name\x18\x03 \x01(\tR\x04name\x12(\n" +
+	"\x0favatarThumbnail\x18\x04 \x01(\tR\x0favatarThumbnail\")\n" +
+	"\x17GetProfilesSummaryInput\x12\x0e\n" +
+	"\x02id\x18\x01 \x03(\x03R\x02id\"J\n" +
+	"\x18GetProfilesSummaryOutput\x12.\n" +
+	"\aprofile\x18\x01 \x03(\v2\x14.user.ProfileSummaryR\aprofile2]\n" +
+	"\vUserService\x12N\n" +
+	"\vGetProfiles\x12\x1d.user.GetProfilesSummaryInput\x1a\x1e.user.GetProfilesSummaryOutput\"\x00B%Z#github.com/htan06/Moments/grpc/userb\x06proto3"
 
 var (
 	file_get_profiles_proto_rawDescOnce sync.Once
@@ -255,14 +208,14 @@ func file_get_profiles_proto_rawDescGZIP() []byte {
 
 var file_get_profiles_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_get_profiles_proto_goTypes = []any{
-	(*Profile)(nil),           // 0: user.Profile
-	(*GetProfilesInput)(nil),  // 1: user.GetProfilesInput
-	(*GetProfilesOutput)(nil), // 2: user.GetProfilesOutput
+	(*ProfileSummary)(nil),           // 0: user.ProfileSummary
+	(*GetProfilesSummaryInput)(nil),  // 1: user.GetProfilesSummaryInput
+	(*GetProfilesSummaryOutput)(nil), // 2: user.GetProfilesSummaryOutput
 }
 var file_get_profiles_proto_depIdxs = []int32{
-	0, // 0: user.GetProfilesOutput.profile:type_name -> user.Profile
-	1, // 1: user.UserService.GetProfiles:input_type -> user.GetProfilesInput
-	2, // 2: user.UserService.GetProfiles:output_type -> user.GetProfilesOutput
+	0, // 0: user.GetProfilesSummaryOutput.profile:type_name -> user.ProfileSummary
+	1, // 1: user.UserService.GetProfiles:input_type -> user.GetProfilesSummaryInput
+	2, // 2: user.UserService.GetProfiles:output_type -> user.GetProfilesSummaryOutput
 	2, // [2:3] is the sub-list for method output_type
 	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

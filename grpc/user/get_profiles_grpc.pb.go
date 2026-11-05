@@ -26,7 +26,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type UserServiceClient interface {
-	GetProfiles(ctx context.Context, in *GetProfilesInput, opts ...grpc.CallOption) (*GetProfilesOutput, error)
+	GetProfiles(ctx context.Context, in *GetProfilesSummaryInput, opts ...grpc.CallOption) (*GetProfilesSummaryOutput, error)
 }
 
 type userServiceClient struct {
@@ -37,9 +37,9 @@ func NewUserServiceClient(cc grpc.ClientConnInterface) UserServiceClient {
 	return &userServiceClient{cc}
 }
 
-func (c *userServiceClient) GetProfiles(ctx context.Context, in *GetProfilesInput, opts ...grpc.CallOption) (*GetProfilesOutput, error) {
+func (c *userServiceClient) GetProfiles(ctx context.Context, in *GetProfilesSummaryInput, opts ...grpc.CallOption) (*GetProfilesSummaryOutput, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetProfilesOutput)
+	out := new(GetProfilesSummaryOutput)
 	err := c.cc.Invoke(ctx, UserService_GetProfiles_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (c *userServiceClient) GetProfiles(ctx context.Context, in *GetProfilesInpu
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
 type UserServiceServer interface {
-	GetProfiles(context.Context, *GetProfilesInput) (*GetProfilesOutput, error)
+	GetProfiles(context.Context, *GetProfilesSummaryInput) (*GetProfilesSummaryOutput, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -62,7 +62,7 @@ type UserServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedUserServiceServer struct{}
 
-func (UnimplementedUserServiceServer) GetProfiles(context.Context, *GetProfilesInput) (*GetProfilesOutput, error) {
+func (UnimplementedUserServiceServer) GetProfiles(context.Context, *GetProfilesSummaryInput) (*GetProfilesSummaryOutput, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetProfiles not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
@@ -87,7 +87,7 @@ func RegisterUserServiceServer(s grpc.ServiceRegistrar, srv UserServiceServer) {
 }
 
 func _UserService_GetProfiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetProfilesInput)
+	in := new(GetProfilesSummaryInput)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func _UserService_GetProfiles_Handler(srv interface{}, ctx context.Context, dec 
 		FullMethod: UserService_GetProfiles_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServiceServer).GetProfiles(ctx, req.(*GetProfilesInput))
+		return srv.(UserServiceServer).GetProfiles(ctx, req.(*GetProfilesSummaryInput))
 	}
 	return interceptor(ctx, in, info, handler)
 }
