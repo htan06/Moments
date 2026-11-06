@@ -3,9 +3,9 @@ package feature
 import (
 	"context"
 	"fmt"
-	"user-service/config"
-	"user-service/internal/application/domain/readmodel"
-	"user-service/internal/ports/outbound"
+
+	"github.com/htan06/Moments/user/config"
+	"github.com/htan06/Moments/user/internal/application/readmodel"
 )
 
 type GetFollowingQry struct {
@@ -20,17 +20,17 @@ type GetFollowingRes struct {
 }
 
 type GetFollowing struct {
-	followRepo outbound.FollowRepository
+	followReader FollowReader
 }
 
-func NewGetFollowing(followRepo outbound.FollowRepository) *GetFollowing {
+func NewGetFollowing(followReader FollowReader) *GetFollowing {
 	return &GetFollowing{
-		followRepo: followRepo,
+		followReader: followReader,
 	}
 }
 
 func (gfu *GetFollowing) Execute(ctx context.Context, qry GetFollowingQry) (GetFollowingRes, error) {
-	users, err := gfu.followRepo.GetFollowing(ctx, qry.Username, qry.PageSize, qry.Cursor/1000000.0)
+	users, err := gfu.followReader.GetFollowing(ctx, qry.Username, qry.PageSize, qry.Cursor/1000000.0)
 
 	if err != nil {
 		return GetFollowingRes{}, fmt.Errorf("GetFollowing.Execute: %w", err)

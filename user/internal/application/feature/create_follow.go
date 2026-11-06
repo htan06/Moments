@@ -4,11 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
-	"user-service/internal/application/domain"
-	"user-service/internal/application/domain/entity"
-	"user-service/internal/application/domain/event"
-	"user-service/internal/errs"
-	"user-service/internal/ports/outbound"
+
+	"github.com/htan06/Moments/user/internal/domain"
 )
 
 type CreateFollowCmd struct {
@@ -26,35 +23,35 @@ type CreateFollowRes struct {
 }
 
 type CreateFollow struct {
-	followRepo     outbound.FollowRepository
-	followProducer outbound.FollowProducer
+	followCreator  FollowCreator
+	followProducer FollowProducer
 }
 
 func NewCreateFollow(
-	followRepo outbound.FollowRepository,
-	followProducer outbound.FollowProducer,
+	followCreator FollowCreator,
+	followProducer FollowProducer,
 ) *CreateFollow {
 	return &CreateFollow{
-		followRepo:     followRepo,
+		followCreator:  followCreator,
 		followProducer: followProducer,
 	}
 }
 
 func (fuu *CreateFollow) Execute(ctx context.Context, cmd CreateFollowCmd) error {
 	if cmd.FollowerID == cmd.FollowingID {
-		return errs.NewError(errs.Invalid, nil, domain.FollowInvalid)
+		return domain.ErrUserIDInvalid
 	}
 
-	follow, err := entity.NewFollow(cmd.FollowerID, cmd.FollowingID)
+	follow, err := domain.NewFollow(cmd.FollowerID, cmd.FollowingID)
 	if err != nil {
 		return fmt.Errorf("CreateFollow.Execute: %w", err)
 	}
 
-	if err := fuu.followRepo.CreateFollow(ctx, *follow); err != nil {
+	if err := fuu.followCreator.CreateFollow(ctx, *follow); err != nil {
 		return fmt.Errorf("CreateFollow.Execute: %w", err)
 	}
 
-	fcevent, err := event.NewFollowCreated(follow.FollowerID(), follow.FollowingID(), follow.CreatedAt())
+	fcevent, err := domain.NewFollowCreated(follow.FollowerID(), follow.FollowingID(), follow.CreatedAt())
 	if err != nil {
 		return fmt.Errorf("CreateFollow.Execute: %w", err)
 	}

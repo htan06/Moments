@@ -3,7 +3,7 @@ package connection
 import (
 	"context"
 	"log"
-	"user-service/config"
+	"github.com/htan06/Moments/user/config"
 
 	"github.com/redis/go-redis/v9"
 )

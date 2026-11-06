@@ -3,8 +3,8 @@ package outbound
 import (
 	"context"
 	"fmt"
-	"user-service/internal/application/domain/event"
 
+	"github.com/htan06/Moments/user/internal/domain"
 	kafka "github.com/segmentio/kafka-go"
 )
 
@@ -34,7 +34,7 @@ func (k *KafakFollowProducer) sendMessage(ctx context.Context, topic string, dat
 	return nil
 }
 
-func (k *KafakFollowProducer) PublishFollowCreated(ctx context.Context, e event.FollowCreated) error {
+func (k *KafakFollowProducer) PublishFollowCreated(ctx context.Context, e domain.FollowCreated) error {
 	payload, err := e.MarshalJSON()
 	if err != nil {
 		return fmt.Errorf("KafakFollowProducer.PublishFollowCreated: %w", err)
@@ -42,7 +42,7 @@ func (k *KafakFollowProducer) PublishFollowCreated(ctx context.Context, e event.
 	return k.sendMessage(ctx, k.followCreatedTopic, payload)
 }
 
-func (k *KafakFollowProducer) PublishFollowDeleted(ctx context.Context, e event.FollowDeleted) error {
+func (k *KafakFollowProducer) PublishFollowDeleted(ctx context.Context, e domain.FollowDeleted) error {
 	payload, err := e.MarshalJSON()
 	if err != nil {
 		return fmt.Errorf("KafakFollowProducer.PublishFollowDeleted: %w", err)

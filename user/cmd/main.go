@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"log"
-	"user-service/config"
-	"user-service/internal/adapter/inbound/middleware"
-	"user-service/internal/adapter/outbound/connection"
-	"user-service/internal/application"
+	"net"
+
+	"github.com/htan06/Moments/user/config"
+	"github.com/htan06/Moments/user/internal/adapter/inbound/http"
+	"github.com/htan06/Moments/user/internal/adapter/outbound/connection"
+	"github.com/htan06/Moments/user/internal/app"
+	"google.golang.org/grpc"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -28,18 +31,27 @@ func main() {
 	postgresConn := connection.GetPostgresConn(config.PostgresConfig)
 	objectStorageConn := connection.GetRustFSConn(config.RustFSConfig)
 
-	requireAccessToken := middleware.NewJWTMiddleware(config.AuthConfig).Require()
-	requireActiveUser := middleware.RequireUserStatus("ACTIVE")
-	requirePendingUser := middleware.RequireUserStatus("PENDING")
+	requireAccessToken := http.NewJWTMiddleware(config.AuthConfig).Require()
+	requireActiveUser := http.RequireUserActive()
+	requirePendingUser := http.RequireUserPending()
 
-	router := gin.Default()
-	v1 := router.Group("/api/v1")
+	httpRouter := gin.Default()
+	v1 := httpRouter.Group("/api/v1")
 
-	userModule := application.InitUserModule(context.Background(), postgresConn, redisConn, objectStorageConn, *config.KafkaWriterConfig)
-	userModule.RegisterRouter(v1, requireAccessToken, requireActiveUser, requirePendingUser)
+	grpcServer := grpc.NewServer()
 
-	followModule := application.InitFollowModule(postgresConn, *config.KafkaWriterConfig)
-	followModule.RegisterRouter(v1, requireAccessToken, requireActiveUser)
+	userModule := app.NewUserModule(context.Background(), postgresConn, redisConn, objectStorageConn, *config.KafkaWriterConfig, config.AppConfig.GRPCAddress)
+	userModule.RegisterHTTPRouter(v1, requireAccessToken, requireActiveUser, requirePendingUser)
+	userModule.RegisterGRPCRouter(grpcServer)
 
-	router.Run(config.AppConfig.Address)
+	followModule := app.NewFollowModule(postgresConn, *config.KafkaWriterConfig)
+	followModule.RegisterHTTPRouter(v1, requireAccessToken, requireActiveUser)
+
+	lis, err := net.Listen("tcp", config.AppConfig.GRPCAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go log.Fatal(grpcServer.Serve(lis))
+	go log.Fatal(httpRouter.Run(config.AppConfig.AppAddress))
 }

@@ -3,23 +3,23 @@ package feature
 import (
 	"context"
 	"fmt"
-	"user-service/config"
-	"user-service/internal/application/domain/readmodel"
-	"user-service/internal/ports/outbound"
+
+	"github.com/htan06/Moments/user/config"
+	"github.com/htan06/Moments/user/internal/application/readmodel"
 )
 
 type Search struct {
-	userRepo outbound.UserRepository
+	profileFinder ProfileReader
 }
 
-func NewSearch(userRepo outbound.UserRepository) *Search {
+func NewSearch(profileFinder ProfileReader) *Search {
 	return &Search{
-		userRepo: userRepo,
+		profileFinder: profileFinder,
 	}
 }
 
 func (s *Search) Execute(ctx context.Context, username string) ([]readmodel.ProfileSummary, error) {
-	profiles, err := s.userRepo.FindProfilesByUsername(ctx, username)
+	profiles, err := s.profileFinder.FindProfilesByUsername(ctx, username)
 	if err != nil {
 		return []readmodel.ProfileSummary{}, fmt.Errorf("Search.Execute: %w", err)
 	}

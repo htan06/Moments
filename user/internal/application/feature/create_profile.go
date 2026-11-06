@@ -3,8 +3,8 @@ package feature
 import (
 	"context"
 	"fmt"
-	"user-service/internal/application/domain/entity"
-	"user-service/internal/ports/outbound"
+
+	"github.com/htan06/Moments/user/internal/domain"
 )
 
 type CreateProfileCmd struct {
@@ -14,24 +14,24 @@ type CreateProfileCmd struct {
 }
 
 type CreateProfile struct {
-	userRepo outbound.UserRepository
+	profileCreator ProfileCreator
 }
 
 func NewCreateProfile(
-	userRepo outbound.UserRepository,
+	profileCreator ProfileCreator,
 ) *CreateProfile {
 	return &CreateProfile{
-		userRepo: userRepo,
+		profileCreator: profileCreator,
 	}
 }
 
 func (uc *CreateProfile) Execute(ctx context.Context, cmd CreateProfileCmd) (*int64, error) {
-	newProfile, err := entity.NewProfile(cmd.UserID, cmd.Name, cmd.Username)
+	newProfile, err := domain.NewProfile(cmd.UserID, cmd.Name, cmd.Username)
 	if err != nil {
 		return nil, fmt.Errorf("CreateProfile.Execute: %w", err)
 	}
 
-	if err := uc.userRepo.CreateProfile(ctx, *newProfile); err != nil {
+	if err := uc.profileCreator.CreateProfile(ctx, *newProfile); err != nil {
 		return nil, fmt.Errorf("CreateProfile.Execute: %w", err)
 	}
 	return &cmd.UserID, nil

@@ -2,12 +2,7 @@
 # Stage 1: Build
 FROM golang:1.26.2-bookworm AS builder
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        build-essential \
-        pkg-config \
-        libvips-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update
 
 WORKDIR /app
 
@@ -16,7 +11,6 @@ RUN go mod download
 
 COPY . .
 
-ENV CGO_ENABLED=1
 ENV GOOS=linux
 ENV GOARCH=amd64
 

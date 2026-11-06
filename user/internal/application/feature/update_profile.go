@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"user-service/internal/errs"
-	"user-service/internal/ports/outbound"
+
+	"github.com/htan06/Moments/user/internal/domain"
 )
 
 var (
@@ -26,12 +26,12 @@ type UpdateProfileRes struct {
 }
 
 type UpdateProfile struct {
-	userRepo outbound.UserRepository
+	profileUpdater ProfileUpdater
 }
 
-func NewUpdateProfile(userRepo outbound.UserRepository) *UpdateProfile {
+func NewUpdateProfile(profileUpdater ProfileUpdater) *UpdateProfile {
 	return &UpdateProfile{
-		userRepo: userRepo,
+		profileUpdater: profileUpdater,
 	}
 }
 
@@ -40,7 +40,7 @@ func (gpu *UpdateProfile) Execute(ctx context.Context, cmd UpdateProfileCmd) (Up
 	res := UpdateProfileRes{}
 
 	if cmd.Username != nil && !usernameRegex.MatchString(*cmd.Username) {
-		return UpdateProfileRes{}, errs.NewError(errs.Invalid, nil, errs.UsernameInvalid)
+		return UpdateProfileRes{}, domain.ErrUsernameInvalid
 	}
 
 	if cmd.Username != nil {
@@ -58,7 +58,7 @@ func (gpu *UpdateProfile) Execute(ctx context.Context, cmd UpdateProfileCmd) (Up
 		res.Bio = cmd.Bio
 	}
 
-	if err := gpu.userRepo.UpdateProfile(ctx, cmd.UserID, fieldsUpdates); err != nil {
+	if err := gpu.profileUpdater.UpdateProfile(ctx, cmd.UserID, fieldsUpdates); err != nil {
 		return UpdateProfileRes{}, fmt.Errorf("UpdateProfile.Execute: %w", err)
 	}
 	return res, nil

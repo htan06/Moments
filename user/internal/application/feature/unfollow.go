@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
-	"user-service/internal/application/domain/entity"
-	"user-service/internal/application/domain/event"
-	"user-service/internal/ports/outbound"
+
+	"github.com/htan06/Moments/user/internal/domain"
 )
 
 type UnfollowCmd struct {
@@ -15,31 +14,31 @@ type UnfollowCmd struct {
 }
 
 type Unfollow struct {
-	followRepo     outbound.FollowRepository
-	followProducer outbound.FollowProducer
+	followDeleter     FollowDeleter
+	followProducer FollowProducer
 }
 
 func NewUnfollow(
-	followRepo outbound.FollowRepository,
-	followProducer outbound.FollowProducer,
+	followDeleter FollowDeleter,
+	followProducer FollowProducer,
 ) *Unfollow {
 	return &Unfollow{
-		followRepo:     followRepo,
+		followDeleter:     followDeleter,
 		followProducer: followProducer,
 	}
 }
 
 func (ufu *Unfollow) Execute(ctx context.Context, cmd UnfollowCmd) error {
-	follow, err := entity.NewFollow(cmd.FollowerID, cmd.FollowingID)
+	follow, err := domain.NewFollow(cmd.FollowerID, cmd.FollowingID)
 	if err != nil {
 		return fmt.Errorf("Unfollow.Execute: %w", err)
 	}
 
-	if err := ufu.followRepo.RemoveByIDAndFollowerID(ctx, *follow); err != nil {
+	if err := ufu.followDeleter.RemoveByIDAndFollowerID(ctx, *follow); err != nil {
 		return fmt.Errorf("Unfollow.Execute: %w", err)
 	}
 
-	fdevent, err := event.NewFollowDeleted(follow.FollowerID(), follow.FollowingID(), time.Now().UTC())
+	fdevent, err := domain.NewFollowDeleted(follow.FollowerID(), follow.FollowingID(), time.Now().UTC())
 	if err != nil {
 		return err
 	}

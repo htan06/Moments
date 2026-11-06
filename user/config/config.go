@@ -24,7 +24,7 @@ type Config struct {
 	RedisConfig       *RedisConfig
 	KafkaWriterConfig *kafka.WriterConfig
 	// KafkaReaderConfig *kafka.ReaderConfig
-	StorageAddress    string
+	StorageAddress string
 }
 
 type AuthenticationConfig struct {
@@ -32,7 +32,8 @@ type AuthenticationConfig struct {
 }
 
 type ApplicationConfig struct {
-	Address string
+	AppAddress  string
+	GRPCAddress string
 }
 
 type RustFSConfig struct {
@@ -106,13 +107,19 @@ func LoadConfig() (*Config, error) {
 }
 
 func loadApplicationConfig() (*ApplicationConfig, error) {
-	address := os.Getenv("APPLICATION_ADDRESS")
-	if !isHostPort(address) {
-		return nil, fmt.Errorf("Application address invalid: %s", address)
+	appAddress := os.Getenv("APPLICATION_ADDRESS")
+	if !isHostPort(appAddress) {
+		return nil, fmt.Errorf("Application address invalid: %s", appAddress)
+	}
+
+	grpcAddress := os.Getenv("APPLICATION_GRPC_ADDRESS")
+	if !isHostPort(grpcAddress) {
+		return nil, fmt.Errorf("Application grpc address invalid: %s", grpcAddress)
 	}
 
 	return &ApplicationConfig{
-		Address: address,
+		AppAddress:  appAddress,
+		GRPCAddress: grpcAddress,
 	}, nil
 }
 

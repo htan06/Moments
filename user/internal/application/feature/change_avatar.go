@@ -4,31 +4,33 @@ import (
 	"context"
 	"fmt"
 	"time"
-	"user-service/config"
-	"user-service/internal/application/domain/job"
-	"user-service/internal/ports/outbound"
 
 	"github.com/google/uuid"
+	"github.com/htan06/Moments/user/config"
+	"github.com/htan06/Moments/user/internal/domain"
 )
 
 type ChangeAvatar struct {
-	userRepo      outbound.UserRepository
-	cacheRepo     outbound.CacheReposiotry
-	objectStorage outbound.ObjectStorage
-	userProducer  outbound.UserProducer
+	profileUpdater ProfileUpdater
+	profileFinder  ProfileReader
+	cacheRepo      CacheReposiotry
+	objectStorage  ObjectStorage
+	userProducer   UserProducer
 }
 
 func NewChangeAvatar(
-	userRepo outbound.UserRepository,
-	cacheRepo outbound.CacheReposiotry,
-	objectStorage outbound.ObjectStorage,
-	userProducer outbound.UserProducer,
+	profileUpdater ProfileUpdater,
+	profileFinder ProfileReader,
+	cacheRepo CacheReposiotry,
+	objectStorage ObjectStorage,
+	userProducer UserProducer,
 ) *ChangeAvatar {
 	return &ChangeAvatar{
-		userRepo:      userRepo,
-		cacheRepo:     cacheRepo,
-		objectStorage: objectStorage,
-		userProducer:  userProducer,
+		profileUpdater: profileUpdater,
+		profileFinder:  profileFinder,
+		cacheRepo:      cacheRepo,
+		objectStorage:  objectStorage,
+		userProducer:   userProducer,
 	}
 }
 
@@ -59,7 +61,7 @@ func (cau *ChangeAvatar) ExecuteCompletedUpload(ctx context.Context, userID int6
 		return "", fmt.Errorf("ChangeAvatar.ExecuteCompletedUpload: %w", err)
 	}
 
-	oldAvatarID, err := cau.userRepo.GetAvatarKeyByUserID(ctx, userID)
+	oldAvatarID, err := cau.profileFinder.GetAvatarKeyByUserID(ctx, userID)
 	if err != nil {
 		return "", fmt.Errorf("ChangeAvatar.ExecuteGetUrlUpload: %w", err)
 	}
@@ -67,38 +69,38 @@ func (cau *ChangeAvatar) ExecuteCompletedUpload(ctx context.Context, userID int6
 	newAvatarKey := fmt.Sprintf("%s.jpeg", newAvatarID)
 	newAvatarThumbnailKey := fmt.Sprintf("%s-thumbnail.jpeg", newAvatarID)
 
-	avatarTask := job.Task{
-		ObjectDes: job.ObjectLocation{
+	avatarTask := domain.Task{
+		ObjectDes: domain.ObjectLocation{
 			Bucket:   config.AvatarsStorage,
 			ObjectID: newAvatarKey,
 		},
-		TaskType: job.ResizeImage,
-		Param: job.TaskParam{
+		TaskType: domain.ResizeImage,
+		Param: domain.TaskParam{
 			Width:  1000,
 			Height: 1000,
 		},
 	}
 
 	thumbnailTask :=
-		job.Task{
-			ObjectDes: job.ObjectLocation{
+		domain.Task{
+			ObjectDes: domain.ObjectLocation{
 				Bucket:   config.AvatarsStorage,
 				ObjectID: newAvatarThumbnailKey,
 			},
-			TaskType: job.ResizeImage,
-			Param: job.TaskParam{
+			TaskType: domain.ResizeImage,
+			Param: domain.TaskParam{
 				Width:  600,
 				Height: 600,
 			},
 		}
 
-	job := job.ProcessMediaJob{
-		ObjectSrc: job.ObjectLocation{
+	job := domain.ProcessMediaJob{
+		ObjectSrc: domain.ObjectLocation{
 			Bucket:   config.TmpStorage,
 			ObjectID: newAvatarID,
 		},
-		MediaType: job.Image,
-		Tasks:     []job.Task{thumbnailTask, avatarTask},
+		MediaType: domain.Image,
+		Tasks:     []domain.Task{thumbnailTask, avatarTask},
 	}
 
 	if err := cau.userProducer.SendJob(ctx, job); err != nil {
@@ -111,7 +113,7 @@ func (cau *ChangeAvatar) ExecuteCompletedUpload(ctx context.Context, userID int6
 		}
 	}
 
-	if err := cau.userRepo.UpdateAvatarKeyAndAvatarThumbnailKey(ctx, userID, newAvatarKey, newAvatarThumbnailKey); err != nil {
+	if err := cau.profileUpdater.UpdateAvatarKeyAndAvatarThumbnailKey(ctx, userID, newAvatarKey, newAvatarThumbnailKey); err != nil {
 		return "", fmt.Errorf("ChangeAvatar.ExecuteCompletedUpload: %w", err)
 	}
 

@@ -3,10 +3,10 @@ package feature
 import (
 	"context"
 	"fmt"
-	"user-service/config"
-	"user-service/internal/application/domain/readmodel"
-	"user-service/internal/errs"
-	"user-service/internal/ports/outbound"
+
+	"github.com/htan06/Moments/user/config"
+	"github.com/htan06/Moments/user/internal/application/readmodel"
+	"github.com/htan06/Moments/user/internal/domain"
 )
 
 type GetProfileQry struct {
@@ -16,28 +16,28 @@ type GetProfileQry struct {
 }
 
 type GetProfile struct {
-	userRepo outbound.UserRepository
+	profileReader ProfileReader
 }
 
-func NewGetProfile(userRepo outbound.UserRepository) *GetProfile {
+func NewGetProfile(profileReader ProfileReader) *GetProfile {
 	return &GetProfile{
-		userRepo: userRepo,
+		profileReader: profileReader,
 	}
 }
 
 func (gpu *GetProfile) Execute(ctx context.Context, qry GetProfileQry) (readmodel.Profile, error) {
 	if qry.TargetUsername == "" {
-		return readmodel.Profile{}, errs.NewError(errs.NotFound, nil, errs.UserNotFound)
+		return readmodel.Profile{}, domain.ErrUserNotFound
 	}
 
 	var p readmodel.Profile
 	var err error
 
 	if qry.CurrentUsername == qry.TargetUsername {
-		p, err = gpu.userRepo.GetSelfProfileByUsername(ctx, qry.TargetUsername)
+		p, err = gpu.profileReader.GetSelfProfileByUsername(ctx, qry.TargetUsername)
 		p.IsOwner = true
 	} else {
-		p, err = gpu.userRepo.GetOtherProfileByUsername(ctx, qry.CurrentUserID, qry.TargetUsername)
+		p, err = gpu.profileReader.GetOtherProfileByUsername(ctx, qry.CurrentUserID, qry.TargetUsername)
 		p.IsOwner = false
 	}
 

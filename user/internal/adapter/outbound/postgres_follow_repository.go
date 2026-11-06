@@ -5,11 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"user-service/internal/adapter/outbound/postgres/sqlc/queries"
-	"user-service/internal/application/domain"
-	"user-service/internal/application/domain/entity"
-	"user-service/internal/application/domain/readmodel"
-	"user-service/internal/errs"
+
+	"github.com/htan06/Moments/user/internal/adapter/outbound/sqlc/queries"
+	"github.com/htan06/Moments/user/internal/application/readmodel"
+	"github.com/htan06/Moments/user/internal/domain"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
@@ -28,7 +27,7 @@ func NewPostgresFollowRepository(conn *pgxpool.Pool) *PostgresFollowRepository {
 	}
 }
 
-func (pfr *PostgresFollowRepository) CreateFollow(ctx context.Context, follow entity.Follow) error {
+func (pfr *PostgresFollowRepository) CreateFollow(ctx context.Context, follow domain.Follow) error {
 	if err := pfr.queries.CreateFollow(ctx, queries.CreateFollowParams{
 		FollowerID:  follow.FollowerID(),
 		FollowingID: follow.FollowingID(),
@@ -42,7 +41,7 @@ func (pfr *PostgresFollowRepository) GetFollowing(ctx context.Context, username 
 	var userID int64
 	if err := pfr.conn.QueryRow(ctx, "SELECT user_id FROM profile.users WHERE username = $1;", username).Scan(&userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errs.NewError(errs.NotFound, nil, domain.UserNotFound)
+			return nil, domain.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
 	}
@@ -84,7 +83,7 @@ func (pfr *PostgresFollowRepository) GetFollowers(ctx context.Context, username 
 	var userID int64
 	if err := pfr.conn.QueryRow(ctx, "SELECT user_id FROM profile.users WHERE username = $1;", username).Scan(&userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errs.NewError(errs.NotFound, nil, domain.UserNotFound)
+			return nil, domain.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("PostgresFollowRepository.GetFollowers: %w", err)
 	}
@@ -122,7 +121,7 @@ func (pfr *PostgresFollowRepository) GetFollowers(ctx context.Context, username 
 	return users, nil
 }
 
-func (pfr *PostgresFollowRepository) RemoveByIDAndFollowerID(ctx context.Context, f entity.Follow) error {
+func (pfr *PostgresFollowRepository) RemoveByIDAndFollowerID(ctx context.Context, f domain.Follow) error {
 	err := pfr.queries.RemoveByFollowerIDAndFollowingID(ctx, queries.RemoveByFollowerIDAndFollowingIDParams{
 		FollowerID:  f.FollowerID(),
 		FollowingID: f.FollowingID(),
@@ -133,7 +132,7 @@ func (pfr *PostgresFollowRepository) RemoveByIDAndFollowerID(ctx context.Context
 	return nil
 }
 
-func (pfr *PostgresFollowRepository) RemoveByIDAndFollowingID(ctx context.Context, f entity.Follow) error {
+func (pfr *PostgresFollowRepository) RemoveByIDAndFollowingID(ctx context.Context, f domain.Follow) error {
 	err := pfr.queries.RemoveByFollowerIDAndFollowingID(ctx, queries.RemoveByFollowerIDAndFollowingIDParams{
 		FollowerID:  f.FollowerID(),
 		FollowingID: f.FollowingID(),
