@@ -26,7 +26,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GraphServiceClient interface {
-	GetFollowingPostIDs(ctx context.Context, in *FollowingPostIDsReq, opts ...grpc.CallOption) (*PostIDsLike, error)
+	GetFollowingPostIDs(ctx context.Context, in *FollowingPostIDsReq, opts ...grpc.CallOption) (*FollowingPostIDsResp, error)
 }
 
 type graphServiceClient struct {
@@ -37,9 +37,9 @@ func NewGraphServiceClient(cc grpc.ClientConnInterface) GraphServiceClient {
 	return &graphServiceClient{cc}
 }
 
-func (c *graphServiceClient) GetFollowingPostIDs(ctx context.Context, in *FollowingPostIDsReq, opts ...grpc.CallOption) (*PostIDsLike, error) {
+func (c *graphServiceClient) GetFollowingPostIDs(ctx context.Context, in *FollowingPostIDsReq, opts ...grpc.CallOption) (*FollowingPostIDsResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(PostIDsLike)
+	out := new(FollowingPostIDsResp)
 	err := c.cc.Invoke(ctx, GraphService_GetFollowingPostIDs_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (c *graphServiceClient) GetFollowingPostIDs(ctx context.Context, in *Follow
 // All implementations must embed UnimplementedGraphServiceServer
 // for forward compatibility.
 type GraphServiceServer interface {
-	GetFollowingPostIDs(context.Context, *FollowingPostIDsReq) (*PostIDsLike, error)
+	GetFollowingPostIDs(context.Context, *FollowingPostIDsReq) (*FollowingPostIDsResp, error)
 	mustEmbedUnimplementedGraphServiceServer()
 }
 
@@ -62,7 +62,7 @@ type GraphServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedGraphServiceServer struct{}
 
-func (UnimplementedGraphServiceServer) GetFollowingPostIDs(context.Context, *FollowingPostIDsReq) (*PostIDsLike, error) {
+func (UnimplementedGraphServiceServer) GetFollowingPostIDs(context.Context, *FollowingPostIDsReq) (*FollowingPostIDsResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetFollowingPostIDs not implemented")
 }
 func (UnimplementedGraphServiceServer) mustEmbedUnimplementedGraphServiceServer() {}
