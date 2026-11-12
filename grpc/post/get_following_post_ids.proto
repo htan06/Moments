@@ -13,6 +13,10 @@ message PostIDsLike {
     bool liked = 2;
 }
 
+message FollowingPostIDsResp {
+  repeated PostIDsLike postIDLike = 1;
+}
+
 service GraphService {
-    rpc GetFollowingPostIDs(FollowingPostIDsReq) returns (PostIDsLike) {}
+    rpc GetFollowingPostIDs(FollowingPostIDsReq) returns (FollowingPostIDsResp) {}
 }
