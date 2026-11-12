@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package post;
+
+option go_package = "github.com/htan06/Moments/grpc/post";
+
+message FollowingPostIDsReq {
+  int64 viewerID = 1;
+}
+
+message PostIDsLike {
+    int64 id = 1;
+    bool liked = 2;
+}
+
+service GraphService {
+    rpc GetFollowingPostIDs(FollowingPostIDsReq) returns (PostIDsLike) {}
+}
