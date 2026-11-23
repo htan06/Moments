@@ -20,6 +20,7 @@ import (
 	"github.com/htan06/Moments/application/config"
 	"github.com/htan06/Moments/application/internal/platform"
 	"github.com/htan06/Moments/application/internal/platform/httpx"
+	usermodule "github.com/htan06/Moments/application/internal/user/module"
 )
 
 const (
@@ -69,9 +70,28 @@ func run(log *slog.Logger) error {
 		c.Status(http.StatusNoContent)
 	})
 
-	// Modules are wired here as they are built, e.g.
-	//   user := usermodule.New(usermodule.Deps{DB: plat.DB, Redis: plat.Redis, ...})
-	//   user.RegisterRoutes(engine)
+	user, err := usermodule.New(usermodule.Deps{
+		DB:        plat.DB,
+		Redis:     plat.Redis,
+		Publisher: plat.Publisher,
+		Tokens:    plat.Tokens,
+		Log:       log,
+		Policy: usermodule.Policy{
+			OTPTTL:            cfg.User.OTPTTL,
+			OTPResendCooldown: cfg.User.OTPResendCooldown,
+			OTPMaxAttempts:    cfg.User.OTPMaxAttempts,
+			LoginMaxAttempts:  cfg.User.LoginMaxAttempts,
+			LoginWindow:       cfg.User.LoginWindow,
+			BcryptCost:        cfg.User.BcryptCost,
+			ReservedUsernames: cfg.User.ReservedUsernames,
+			MailExchange:      cfg.User.MailExchange,
+			MailRoutingKey:    cfg.User.MailRoutingKey,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	user.RegisterRoutes(engine)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTP.Addr,

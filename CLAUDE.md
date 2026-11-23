@@ -194,6 +194,11 @@ go test ./...
 - **Media service là service riêng, xử lý bất đồng bộ**: giữ RabbitMQ (task) + Kafka (kết quả) ngay từ giai đoạn đầu, không xử lý ảnh trong monolith.
 - **Tên exchange / queue / topic / consumer group và struct message đặt khi code**, gom tập trung theo module trong `internal/<module>/adapter/mq/` (giống `keys.go` của Redis); tên thật lấy từ `config`.
 - **Topology RabbitMQ / Kafka do dev quản lý, app không tự tạo**: dev đọc code, tạo queue / topic cần thiết và ghi lại thành file schema trong repo. Thêm exchange / queue / topic mới thì báo dev trong phần tóm tắt khi xong việc.
+- **Đăng ký 4 bước**: `POST /auth/register` (gửi OTP, luôn trả `sessionId`) → `/auth/register/verify-otp` → `/auth/register/complete` (chọn username + mật khẩu, trả token). Gửi lại OTP: `/auth/register/resend-otp`. Sai input / username trùng ở bước complete giữ phiên để user sửa.
+- **VerificationSession lưu Redis** (JSON, TTL = thời gian còn lại, cập nhật bằng `WATCH` + `KEEPTTL`); OTP lưu dạng SHA-256 gắn với `session_id`. Gửi mail OTP chạy nền (goroutine), để nhánh email thật / dummy có thời gian phản hồi như nhau.
+- **Mật khẩu: bcrypt trên SHA-256 (base64) của mật khẩu**, vì bcrypt chỉ đọc 72 byte đầu mà 64 ký tự UTF-8 có thể vượt quá.
+- **Đếm đăng nhập sai (USER-R3)**: identifier khớp tài khoản thì đếm theo account id (email và username dùng chung bộ đếm), không khớp thì đếm theo identifier (hash). Cửa sổ cố định tính từ lần sai đầu tiên. Bị chặn trả 429 `TOO_MANY_ATTEMPTS` kèm `retryAfterSeconds` và header `Retry-After`.
+- **Giá trị policy của module `user`** (TTL OTP, cooldown, số lần sai, bcrypt cost, username dành riêng) hiện là default trong `config.defaultUser()`, chưa đọc từ biến môi trường. Tên exchange / routing key mail lấy từ `MAIL_EXCHANGE`, `MAIL_OTP_ROUTING_KEY`.
 
 ## Để sau – không tự làm
 
