@@ -1,0 +1,14 @@
+MOMENTS
+
+Verify your email
+
+Enter this code to verify your email address:
+
+    {{.Code}}
+
+This code expires in {{.ExpiresIn}}. Do not share it with anyone.
+
+If you did not request this code, you can safely ignore this email.
+
+--
+This is an automated message from Moments. Please do not reply.

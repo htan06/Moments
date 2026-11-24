@@ -183,14 +183,14 @@ go test ./...
 - **JWT ký bằng RS256** (private key ký, public key xác thực). Client gửi token qua header `Authorization: Bearer <token>`.
 - **Key RS256 nằm trong file**, đường dẫn lấy từ `PRIVATE_KEY_PATH` và `PUBLIC_KEY_PATH`. Access token và refresh token dùng **hai cặp key riêng**, phân biệt bằng loại block PEM: file private chứa `ACCESS PRIVATE KEY` và `REFRESH PRIVATE KEY`, file public chứa `ACCESS PUBLIC KEY` và `REFRESH PUBLIC KEY`. Private key định dạng PKCS#8 (`x509.ParsePKCS8PrivateKey`), public key định dạng PKIX (`x509.ParsePKIXPublicKey`).
 - **Response lỗi HTTP** có dạng `{"code": "...", "message": "..."}` (`httpx.Error`); `message` tùy chọn. Auth sai / thiếu token → 401 `UNAUTHORIZED`; user không `ACTIVE` → 403 `FORBIDDEN`.
-- **Nội dung email OTP tạm thời:** `Your OTP is <otp>`. Template là task riêng, chưa làm.
+- **Task mail OTP chỉ mang dữ liệu, mail service render tiêu đề và nội dung**: body JSON `{"type":"otp","to":"<địa chỉ, không có tên hiển thị>","otp":"<chỉ chữ số>","expires_at":"<RFC 3339 UTC>"}`, publish lên `MAIL_EXCHANGE` / `MAIL_OTP_ROUTING_KEY`, có `message_id`. Vì sao: template (HTML đen trắng + text) thuộc mail service, backend không giữ nội dung email.
 - **Chưa lên production nên sửa thẳng migration khởi tạo**: mỗi module một migration goose `internal/<module>/adapter/postgres/migrations/00001_init.sql`, là **nguồn schema duy nhất**; thay đổi schema thì sửa trực tiếp file này. `db-schema/` ở gốc repo chỉ còn `bootstrap.sql`, `grants.sql` và `moments.sql` (schema microservice cũ, không sửa). Quy tắc "không sửa migration đã merge" áp dụng từ khi lên production.
 - **Quyền DB của role ứng dụng (`POSTGRES_APPLICATION_USER`) khai báo ở `db-schema/grants.sql`**, chỉ cấp thao tác nghiệp vụ cần. Thêm bảng mới thì thêm GRANT vào file này.
 - **Migration local chạy bằng service `moments-migrate`** (`docker/migrate/`, goose + psql, role `POSTGRES_MIGRATOR_*`): goose `up` từng module → `grants.sql`. Không dùng `docker-entrypoint-initdb.d`. **Tạo role, mật khẩu là việc của quản trị**; repo chỉ lo schema, migration và quyền. Thêm module mới thì thêm vào vòng lặp trong `migrate.sh`.
 - **Ba role DB, migration không dùng admin**: admin sở hữu database và schema `public`, chỉ chạy tay `db-schema/bootstrap.sql` (tạo role, cấp `CONNECT`/`CREATE` database + `CREATE` trên `public` cho migrator, `CONNECT` cho app); **migrator** (không superuser) sở hữu schema của các module và tự cấp quyền trong `grants.sql`; **app** chỉ có quyền thao tác dữ liệu. Vì sao: lộ thông tin của migrate không lộ superuser; mật khẩu migrator chỉ đưa cho job migrate, không đưa cho app.
 - **Tập giá trị cố định (status, type…) lưu `text` + `CHECK`, không dùng enum Postgres**: đổi / bỏ giá trị chỉ cần thay constraint, migration Down viết được.
 - **Chưa viết integration test** (Postgres / Redis / RabbitMQ / RustFS); hiện chỉ unit test theo mục "Test". Dev làm khi đến bước CI.
-- **Mail service là service riêng, nằm ngoài repo này**; nhận task qua work queue RabbitMQ. Backend chỉ publish task.
+- **Mail service là service riêng ở `mail/`** (Go module `github.com/htan06/Moments/mail`, ngang cấp `application/`, không dùng chung code); consume queue `MAIL_QUEUE`, gửi qua SMTP (Gmail + app password, `SMTP_*`). Backend chỉ publish task. Task hết hạn thì bỏ, không gửi (USER-R2).
 - **Media service là service riêng, xử lý bất đồng bộ**: giữ RabbitMQ (task) + Kafka (kết quả) ngay từ giai đoạn đầu, không xử lý ảnh trong monolith.
 - **Tên exchange / queue / topic / consumer group và struct message đặt khi code**, gom tập trung theo module trong `internal/<module>/adapter/mq/` (giống `keys.go` của Redis); tên thật lấy từ `config`.
 - **Topology RabbitMQ / Kafka do dev quản lý, app không tự tạo**: dev đọc code, tạo queue / topic cần thiết và ghi lại thành file schema trong repo. Thêm exchange / queue / topic mới thì báo dev trong phần tóm tắt khi xong việc.
@@ -202,6 +202,5 @@ go test ./...
 
 ## Để sau – không tự làm
 
-- Template email OTP (task riêng).
 - File schema topology RabbitMQ / Kafka (dev làm).
 - Integration test và CI (dev làm khi đến bước CI).
