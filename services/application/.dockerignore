@@ -1,0 +1,9 @@
+# Không đưa biến môi trường, key, file build cục bộ vào image.
+.env
+*.env
+*.env.*
+*.pem
+Dockerfile
+.dockerignore
+__debug_bin*
+secrets/

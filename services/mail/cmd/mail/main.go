@@ -35,8 +35,9 @@ func run(log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Local dev: load .env from the working directory if present. Variables
-	// already set in the environment win; production sets them directly.
+	// Local dev (go run from services/mail/): load .env (localhost addresses)
+	// if present. Variables already set in the environment win; the container
+	// gets its variables from .env.docker via compose.
 	if err := godotenv.Load(); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("load .env: %w", err)
 	}

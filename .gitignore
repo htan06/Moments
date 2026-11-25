@@ -1,6 +1,12 @@
+# Biến môi trường và key: không commit. .env.example là mẫu, có commit.
 *.env
 *.env.*
+!.env.example
 *.pem
 *.pem.*
+
+# Editor / build cục bộ
 .vscode/
 __debug_bin.*
+.gocache/
+.gotmp/

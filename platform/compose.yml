@@ -1,12 +1,17 @@
-name: moments-infra
+# Platform: hạ tầng dùng chung, đứng riêng với services. Dựng một lần, ít khi khởi động lại.
+#   docker compose -f platform/compose.yml up -d
+# ${...} lấy từ platform/.env (compose tự đọc .env cạnh file này): chỉ tài khoản quản trị hạ tầng.
+# Services (migrate, api, mail, nginx) ở services/compose.yml, nối vào network moments-net.
+# Volume postgres mới: chạy tay platform/postgres/init.sql (tạo role) trước khi migrate, xem hướng dẫn trong file đó.
+name: moments-platform
 
 services:
   moments-rabbitmq:
     image: rabbitmq:4-management
     container_name: moments-rabbitmq
     ports:
-    - "15672:15672"
-    - "5672:5672"
+      - "15672:15672"
+      - "5672:5672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
@@ -14,7 +19,7 @@ services:
       - moments-rabbitmq:/var/lib/rabbitmq
     networks:
       moments-net:
-        ipv4_address: 172.18.0.5
+        ipv4_address: 172.18.0.2
 
   moments-postgres:
     image: postgres:17.10-alpine
@@ -35,29 +40,7 @@ services:
       retries: 30
     networks:
       moments-net:
-        ipv4_address: 172.18.0.6
-
-  # Chạy một lần bằng role migrator: goose migration từng module, cấp quyền cho role ứng dụng
-  # (role do quản trị tạo sẵn bằng db-schema/bootstrap.sql).
-  moments-migrate:
-    build: ./docker/migrate
-    container_name: moments-migrate
-    depends_on:
-      moments-postgres:
-        condition: service_healthy
-    environment:
-      PGHOST: moments-postgres
-      PGPORT: 5432
-      PGDATABASE: moments_database
-      PGUSER: ${POSTGRES_MIGRATOR_USER}
-      PGPASSWORD: ${POSTGRES_MIGRATOR_PWD}
-      POSTGRES_APPLICATION_USER: ${POSTGRES_APPLICATION_USER}
-    volumes:
-      - ./application/internal:/migrations:ro
-      - ./db-schema/grants.sql:/sql/grants.sql:ro
-    restart: "no"
-    networks:
-      - moments-net
+        ipv4_address: 172.18.0.3
 
   moments-redis:
     image: redis:8.2-alpine
@@ -69,7 +52,7 @@ services:
       - moments-redis:/data
     networks:
       moments-net:
-        ipv4_address: 172.18.0.7
+        ipv4_address: 172.18.0.4
 
   moments-rustfs:
     image: rustfs/rustfs:1.0.4
@@ -87,10 +70,10 @@ services:
       RUSTFS_OBS_LOG_DIRECTORY: "/var/log/rustfs/"
     volumes:
       - moments-rustfs-data:/data
-      - moments-rustfs-log:/var/log/rustfs/  
+      - moments-rustfs-log:/var/log/rustfs/
     networks:
       moments-net:
-        ipv4_address: 172.18.0.8
+        ipv4_address: 172.18.0.5
 
   moments-kafka-broker:
     image: apache/kafka:latest
@@ -112,24 +95,15 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 3
     volumes:
-        - moments-kafka-broker:/var/lib/kafka/data
+      - moments-kafka-broker:/var/lib/kafka/data
     networks:
       moments-net:
-        ipv4_address: 172.18.0.9
-
-  moments-nginx:
-    image: nginx:alpine
-    container_name: moments-nginx
-    ports:
-      - "80:80"
-    volumes:
-      - "./gateway/gateway.conf:/etc/nginx/nginx.conf"
-    networks:
-      moments-net:
-        ipv4_address: 172.18.0.10
+        ipv4_address: 172.18.0.6
 
 networks:
+  # Tên cố định để services/compose.yml dùng lại (external).
   moments-net:
+    name: moments-net
     driver: bridge
     enable_ipv6: false
     ipam:
@@ -137,10 +111,6 @@ networks:
         - subnet: 172.18.0.0/16
 
 volumes:
-  # moments-scylla-1:
-  # moments-scylla-2:
-  # moments-scylla-3:
-  # moments-scylla-4:
   moments-rabbitmq:
   moments-postgres:
   moments-redis:
