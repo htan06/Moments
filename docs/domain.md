@@ -9,13 +9,13 @@ Chỉ mô tả nghiệp vụ: module, entity, rule. Usecase không mô tả ở 
 - Danh sách phân trang theo thời gian, mới nhất trước; không lặp và không sót bản ghi khi dữ liệu thay đổi giữa hai lần xem.
 - Đối tượng "không tồn tại hoặc không được phép xem" luôn báo **không tìm thấy**, để người ngoài không phân biệt được hai trường hợp.
 
-**Các module:** `user`, `content`, `interaction`. Module không đọc dữ liệu của nhau; cần gì thì hỏi module sở hữu. Phụ thuộc: `content` hỏi `user`; `interaction` hỏi `content` và `user`.
+**Các module:** `account`, `user`, `content`, `interaction`. Module không đọc dữ liệu của nhau; cần gì thì hỏi module sở hữu. Phụ thuộc: `account` yêu cầu `user` tạo Profile khi đăng ký; `content` hỏi `user`; `interaction` hỏi `content` và `user`.
 
 ---
 
-# Module: user
+# Module: account
 
-Tài khoản, hồ sơ, quan hệ follow / block.
+Tài khoản đăng nhập: đăng ký, đăng nhập, token, mật khẩu, username, trạng thái.
 
 ## Entity
 
@@ -28,9 +28,60 @@ Tài khoản, hồ sơ, quan hệ follow / block.
 - `createdAt`: bất biến
 - `updatedAt`
 
+### VerificationSession (phiên xác thực OTP)
+- `id`: duy nhất; trả cho client làm `session_id`
+- `type`: `REGISTER` | `FORGOT_PASSWORD`; bất biến
+- `email`: bất biến
+- `otp`: 6 chữ số, sinh ngẫu nhiên an toàn; chỉ lưu hash
+- `username`, `name`, `passwordHash`: chỉ có ở phiên `REGISTER`; dữ liệu user gửi lúc đăng ký, đã kiểm tra định dạng; mật khẩu chỉ lưu hash; bất biến
+- không có trạng thái: OTP được kiểm tra ngay trong thao tác cuối của luồng (tạo user khi đăng ký), không có bước "đã xác thực OTP" riêng
+- phiên bị xóa khi luồng hoàn tất, khi sai OTP đủ số lần, hoặc khi hết hạn
+- `failedAttempts`: ≥ 0; số lần nhập sai OTP; đạt 5 thì xóa phiên
+- `lastSentAt`: thời điểm gửi OTP gần nhất, dùng để tạo khoảng cách giữa các lần yêu cầu gửi lại
+- `isDummy`: bất biến; `true` khi email không hợp lệ với luồng (xem Rule không lộ tài khoản)
+- hạn dùng: 10 phút kể từ lúc tạo; không gia hạn khi gửi lại OTP
+
+## Rule
+
+**ACCOUNT-R1 – Không lộ sự tồn tại của tài khoản.** Email đã / chưa tồn tại, sai username, sai mật khẩu đều cho cùng một phản hồi chung chung. Bước gửi email (đăng ký, quên mật khẩu) luôn trả `session_id`; khi email không hợp lệ với luồng (đã tồn tại khi đăng ký, chưa tồn tại khi quên mật khẩu) thì tạo phiên dummy: không gửi OTP, mọi OTP nhập vào đều bị coi là sai. Thời gian phản hồi hai nhánh không được chênh lệch đáng kể (đăng nhập sai user vẫn so sánh với hash giả).
+
+**ACCOUNT-R2 – OTP.**
+- OTP có hạn theo phiên (10 phút); mỗi phiên chỉ dùng một lần.
+- OTP được kiểm tra trong chính request thực hiện thao tác cuối của luồng (đăng ký: OTP đúng thì tạo Account + Profile ngay), để chỉ người sở hữu email mới hoàn tất được luồng; `session_id` một mình không đủ.
+- Gửi lại OTP cách nhau tối thiểu 60 giây; OTP mới vô hiệu OTP cũ; không gia hạn phiên.
+- Nhập sai OTP tối đa 5 lần mỗi phiên, vượt thì xóa phiên và bắt đầu lại.
+- Gửi email OTP là bất đồng bộ: hệ thống không chờ mail đi. Mail chưa gửi mà OTP đã hết hạn thì không gửi nữa. Gửi thất bại không làm đổi phản hồi (theo ACCOUNT-R1); người dùng dùng chức năng gửi lại.
+
+**ACCOUNT-R3 – Giới hạn thử sai.** Đăng nhập sai tối đa 5 lần trong 15 phút cho mỗi identifier (tính chung cho 1 cặp email username). Nhập sai mật khẩu cũ khi đổi mật khẩu cùng giới hạn đó cho mỗi user. Vượt giới hạn thì bị chặn tới khi hết thời gian, không có mở khóa thủ công, và phản hồi cho biết còn bao lâu. Đăng nhập thành công không xóa bộ đếm; đặt lại mật khẩu thành công thì xóa bộ đếm đăng nhập của tài khoản.
+
+**ACCOUNT-R4 – Mật khẩu.** 6–64 ký tự, có ít nhất một chữ và một số. Đổi mật khẩu thì mật khẩu mới phải khác mật khẩu cũ.
+
+**ACCOUNT-R5 – Username.** Chỉ gồm `a-z`, `0-9`, `.`, `_`; dài 3–30; lưu chữ thường; không bắt đầu hoặc kết thúc bằng `.`; không có hai dấu `.` liền nhau; không chứa `@`; không thuộc danh sách tên dành riêng (`admin`, `moments`, `support`, `api`…). Đổi username giải phóng username cũ ngay; sau khi đổi, `account` yêu cầu `user` cập nhật bản sao username trong Profile. Hai bước này ràng buộc theo saga: bước sau thất bại thì bù trừ, đưa username ở cả hai module về như trước khi đổi. Username trùng thì báo cụ thể (username là thông tin công khai).
+
+**ACCOUNT-R6 – Phiên đăng nhập và token.**
+- Token truy cập và token làm mới chứa `userId`, `username`, `status`. Hệ thống chỉ dùng `userId` để định danh và phân quyền; `username` chỉ để hiển thị.
+- Token truy cập sống 15 phút, token làm mới sống 30 ngày. Làm mới token lấy `username`, `status` hiện tại, không sao chép từ token cũ.
+- Đổi username hoặc status thì trả cặp token mới.
+- Chỉ user `ACTIVE` được dùng chức năng cần đăng nhập. Token cũ có thể mang thông tin cũ tới khi hết hạn; chấp nhận độ trễ này.
+- Đăng xuất chỉ xảy ra ở client; token đã cấp vẫn hợp lệ tới khi hết hạn.
+
+**ACCOUNT-R7 – Tạo tài khoản.** Mỗi Account có đúng một Profile (thuộc module `user`). Khi đăng ký, Account được tạo trước, ngay sau đó `account` yêu cầu `user` tạo Profile; yêu cầu này idempotent (gọi lại không tạo thêm). Tạo Profile thất bại thì xóa Account vừa tạo và giữ phiên, user thử lại với cùng OTP. Trùng email khi hoàn tất đăng ký (hai luồng đua nhau) thì báo lỗi chung và hủy phiên. Username không được giữ chỗ trong lúc chờ OTP; nếu bị người khác lấy trước khi hoàn tất thì báo username trùng và hủy phiên, user đăng ký lại.
+
+## Việc `account` cung cấp cho module khác
+- **Thông tin tài khoản của một user:** có tồn tại không, có `ACTIVE` không, `username`.
+
+---
+
+# Module: user
+
+Hồ sơ (Profile) và quan hệ follow / block giữa các user. Tài khoản đăng nhập thuộc module `account`.
+
+## Entity
+
 ### Profile
-- `userId`: = `Account.id`; bất biến; mỗi Account đúng một Profile
-- `name`: 1–50 ký tự sau khi trim; mặc định khi tạo = `username` + 4 ký tự ngẫu nhiên `[a-z0-9]`
+- `userId`: = id của Account (module `account`); bất biến; mỗi Account đúng một Profile, do `account` yêu cầu tạo ngay sau Account (ACCOUNT-R7)
+- `username`: bản sao `username` của Account, duy nhất, để đọc profile không phải hỏi `account`; `account` là nguồn gốc, đổi username thì `account` yêu cầu `user` cập nhật bản sao theo saga (ACCOUNT-R5)
+- `name`: 1–50 ký tự sau khi trim; do user nhập khi đăng ký (bắt buộc)
 - `bio`: tối đa 150 ký tự; chuỗi rỗng thì lưu `null`
 - `avatar`: ảnh đại diện đã xử lý; `null` khi chưa có; luôn vuông 1:1
 - `avatarThumb`: bản thu nhỏ của avatar; luôn có / không có cùng lúc với `avatar`; chỉ thay đổi bởi kết quả xử lý avatar, không sửa qua cập nhật profile
@@ -54,41 +105,7 @@ Tài khoản, hồ sơ, quan hệ follow / block.
 - mỗi cặp (`blockerId`, `blockedId`) tối đa một bản ghi
 - hai chiều độc lập: A block B và B block A có thể cùng tồn tại; mỗi người chỉ gỡ block của chính mình
 
-### VerificationSession (phiên xác thực OTP)
-- `id`: duy nhất; trả cho client làm `session_id`
-- `type`: `REGISTER` | `FORGOT_PASSWORD`; bất biến
-- `email`: bất biến
-- `otp`: 6 chữ số, sinh ngẫu nhiên an toàn; chỉ lưu hash
-- `status`: `PENDING` (đã gửi OTP, chờ xác thực) → `OTP_VERIFIED` (OTP đúng, chờ bước tiếp theo); không có trạng thái hoàn thành vì phiên bị xóa khi xong
-- `failedAttempts`: ≥ 0; số lần nhập sai OTP; đạt 5 thì xóa phiên
-- `lastSentAt`: thời điểm gửi OTP gần nhất, dùng để tạo khoảng cách giữa các lần yêu cầu gửi lại
-- `isDummy`: bất biến; `true` khi email không hợp lệ với luồng (xem Rule không lộ tài khoản)
-- hạn dùng: 10 phút kể từ lúc tạo; không gia hạn khi gửi lại OTP
-
 ## Rule
-
-**USER-R1 – Không lộ sự tồn tại của tài khoản.** Email đã / chưa tồn tại, sai username, sai mật khẩu đều cho cùng một phản hồi chung chung. Bước gửi email (đăng ký, quên mật khẩu) luôn trả `session_id`; khi email không hợp lệ với luồng (đã tồn tại khi đăng ký, chưa tồn tại khi quên mật khẩu) thì tạo phiên dummy: không gửi OTP, mọi OTP nhập vào đều bị coi là sai. Thời gian phản hồi hai nhánh không được chênh lệch đáng kể (đăng nhập sai user vẫn so sánh với hash giả).
-
-**USER-R2 – OTP.**
-- OTP có hạn theo phiên (10 phút); mỗi phiên chỉ dùng một lần.
-- Gửi lại OTP cách nhau tối thiểu 60 giây; OTP mới vô hiệu OTP cũ; không gia hạn phiên.
-- Nhập sai OTP tối đa 5 lần mỗi phiên, vượt thì xóa phiên và bắt đầu lại.
-- Gửi email OTP là bất đồng bộ: hệ thống không chờ mail đi. Mail chưa gửi mà OTP đã hết hạn thì không gửi nữa. Gửi thất bại không làm đổi phản hồi (theo USER-R1); người dùng dùng chức năng gửi lại.
-
-**USER-R3 – Giới hạn thử sai.** Đăng nhập sai tối đa 5 lần trong 15 phút cho mỗi identifier (tính chung cho 1 cặp email username). Nhập sai mật khẩu cũ khi đổi mật khẩu cùng giới hạn đó cho mỗi user. Vượt giới hạn thì bị chặn tới khi hết thời gian, không có mở khóa thủ công, và phản hồi cho biết còn bao lâu. Đăng nhập thành công không xóa bộ đếm; đặt lại mật khẩu thành công thì xóa bộ đếm đăng nhập của tài khoản.
-
-**USER-R4 – Mật khẩu.** 6–64 ký tự, có ít nhất một chữ và một số. Đổi mật khẩu thì mật khẩu mới phải khác mật khẩu cũ.
-
-**USER-R5 – Username.** Chỉ gồm `a-z`, `0-9`, `.`, `_`; dài 3–30; lưu chữ thường; không bắt đầu hoặc kết thúc bằng `.`; không có hai dấu `.` liền nhau; không chứa `@`; không thuộc danh sách tên dành riêng (`admin`, `moments`, `support`, `api`…). Đổi username giải phóng username cũ ngay. Username trùng thì báo cụ thể (username là thông tin công khai).
-
-**USER-R6 – Phiên đăng nhập và token.**
-- Token truy cập và token làm mới chứa `userId`, `username`, `status`. Hệ thống chỉ dùng `userId` để định danh và phân quyền; `username` chỉ để hiển thị.
-- Token truy cập sống 15 phút, token làm mới sống 30 ngày. Làm mới token lấy `username`, `status` hiện tại, không sao chép từ token cũ.
-- Đổi username hoặc status thì trả cặp token mới.
-- Chỉ user `ACTIVE` được dùng chức năng cần đăng nhập. Token cũ có thể mang thông tin cũ tới khi hết hạn; chấp nhận độ trễ này.
-- Đăng xuất chỉ xảy ra ở client; token đã cấp vẫn hợp lệ tới khi hết hạn.
-
-**USER-R7 – Tạo tài khoản.** Account và Profile luôn được tạo cùng nhau; không tồn tại Account thiếu Profile. Trùng email khi hoàn tất đăng ký (hai luồng đua nhau) thì báo lỗi chung và hủy phiên.
 
 **USER-R8 – Avatar.** Ảnh jpeg / png / webp, tối đa 5 MB, phải đúng tỉ lệ 1:1 (cho phép sai số 1%). Hệ thống tự kiểm tra ảnh thật, không tin thông tin client khai báo. Upload avatar mới ghi đè avatar đang chờ xử lý. Xử lý lỗi thì giữ avatar cũ; không có retry, user upload lại.
 
@@ -107,8 +124,10 @@ Tài khoản, hồ sơ, quan hệ follow / block.
 **USER-R15 – Danh sách quan hệ.** Danh sách followers / following: đối tượng khác người xem thì phải tồn tại, `ACTIVE` và không có Block với người xem. Bỏ khỏi danh sách các user không `ACTIVE` và các user có Block với người xem, lọc ngay khi lấy từng trang để trang không bị thiếu. Danh sách đã block chỉ của chính mình, không lọc user không `ACTIVE` để vẫn gỡ block được.
 
 ## Việc `user` cung cấp cho module khác
+- **Tạo Profile cho Account mới** (ACCOUNT-R7), kèm bản sao `username`: idempotent; kiểm tra tên profile hợp lệ trước khi tạo.
+- **Cập nhật bản sao `username`** khi `account` đổi username (chưa làm, cùng lúc với chức năng đổi username).
 - **Cập nhật `postCount`:** `content` yêu cầu tăng / giảm `postCount` của tác giả khi post của họ được publish hoặc bị xóa.
-- **Thông tin tóm tắt của một user:** có tồn tại không, có `ACTIVE` không, `username`, `name`, `avatarThumb`.
+- **Thông tin tóm tắt của một user:** có tồn tại không, có `ACTIVE` không, `username`, `name`, `avatarThumb`. `username` lấy từ bản sao trong Profile; tồn tại và `ACTIVE` do `user` hỏi lại `account` (chưa làm).
 - **Quan hệ giữa hai user:** người xem có follow đối tượng không; có Block giữa hai bên theo bất kỳ chiều nào không.
 
 ---

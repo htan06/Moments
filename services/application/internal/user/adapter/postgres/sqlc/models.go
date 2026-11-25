@@ -8,16 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type UsersAccount struct {
-	ID           int64
-	Email        string
-	Username     string
-	PasswordHash string
-	Status       string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-}
-
 type UsersBlock struct {
 	BlockerID int64
 	BlockedID int64
@@ -32,6 +22,7 @@ type UsersFollow struct {
 
 type UsersProfile struct {
 	UserID         int64
+	Username       string
 	Name           string
 	Bio            pgtype.Text
 	AvatarKey      pgtype.Text

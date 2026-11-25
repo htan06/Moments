@@ -1,0 +1,38 @@
+openapi: 3.1.0
+info:
+  title: Moments API – hệ thống
+  version: 0.1.0
+  description: |
+    Route do `cmd/api` đăng ký trực tiếp, không thuộc module nào. API nghiệp vụ
+    nằm trong spec của từng module: `internal/<module>/adapter/httpapi/openapi.yaml`.
+servers:
+  - url: http://localhost:8080
+    description: Local (địa chỉ thật theo biến `APPLICATION_ADDRESS`)
+
+paths:
+  /healthz:
+    get:
+      operationId: health
+      security: []
+      summary: Kiểm tra kết nối hạ tầng
+      responses:
+        '204':
+          description: Service và các kết nối hạ tầng hoạt động bình thường.
+        '503':
+          description: '`UNAVAILABLE` – một kết nối hạ tầng không phản hồi.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          example: UNAVAILABLE
+        message:
+          type: string

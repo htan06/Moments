@@ -20,26 +20,26 @@ type Config struct {
 	RabbitMQ RabbitMQ
 	ObjStore ObjStore
 	Token    Token
-	User     User
+	Account  Account
 }
 
-// User holds the user module's policy values. Defaults are the business
+// Account holds the account module's policy values. Defaults are the business
 // defaults from docs/domain.md.
-type User struct {
-	OTPTTL            time.Duration // USER-R2: verification session lifetime
-	OTPResendCooldown time.Duration // USER-R2: gap between two OTP sends
-	OTPMaxAttempts    int           // USER-R2: wrong OTPs that delete the session
-	LoginMaxAttempts  int           // USER-R3: failed logins before blocking
-	LoginWindow       time.Duration // USER-R3: counting / blocking window
+type Account struct {
+	OTPTTL            time.Duration // ACCOUNT-R2: verification session lifetime
+	OTPResendCooldown time.Duration // ACCOUNT-R2: gap between two OTP sends
+	OTPMaxAttempts    int           // ACCOUNT-R2: wrong OTPs that delete the session
+	LoginMaxAttempts  int           // ACCOUNT-R3: failed logins before blocking
+	LoginWindow       time.Duration // ACCOUNT-R3: counting / blocking window
 	BcryptCost        int
-	ReservedUsernames []string // USER-R5
+	ReservedUsernames []string // ACCOUNT-R5
 
 	MailExchange   string // RabbitMQ exchange of the mail service
 	MailRoutingKey string // routing key of OTP mail tasks
 }
 
-func defaultUser() User {
-	return User{
+func defaultAccount() Account {
+	return Account{
 		OTPTTL:            10 * time.Minute,
 		OTPResendCooldown: 60 * time.Second,
 		OTPMaxAttempts:    5,
@@ -140,9 +140,9 @@ func Load() (Config, error) {
 			RefreshTTL:     l.duration("REFRESH_TTL"),
 		},
 	}
-	cfg.User = defaultUser()
-	cfg.User.MailExchange = l.str("MAIL_EXCHANGE")
-	cfg.User.MailRoutingKey = l.str("MAIL_OTP_ROUTING_KEY")
+	cfg.Account = defaultAccount()
+	cfg.Account.MailExchange = l.str("MAIL_EXCHANGE")
+	cfg.Account.MailRoutingKey = l.str("MAIL_OTP_ROUTING_KEY")
 	if cfg.Postgres.MinConns > cfg.Postgres.MaxConns {
 		l.errs = append(l.errs, errors.New("DATABASE_POSTGRES_MIN_CONNS must be <= DATABASE_POSTGRES_MAX_CONNS"))
 	}

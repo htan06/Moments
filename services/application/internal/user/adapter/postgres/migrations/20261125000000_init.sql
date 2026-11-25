@@ -2,31 +2,12 @@
 CREATE SCHEMA IF NOT EXISTS users;
 
 -- ---------------------------------------------------------------------------
--- Account
--- ---------------------------------------------------------------------------
-CREATE TABLE users.accounts (
-    id            bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    email         text        NOT NULL,                    -- lưu chữ thường, bất biến
-    username      text        NOT NULL,                    -- lưu chữ thường (USER-R5)
-    password_hash text        NOT NULL,
-    status        text        NOT NULL DEFAULT 'ACTIVE',
-    created_at    timestamptz NOT NULL DEFAULT now(),
-    updated_at    timestamptz NOT NULL DEFAULT now(),
-
-    CONSTRAINT accounts_email_lower_chk    CHECK (email = lower(email)),
-    CONSTRAINT accounts_username_lower_chk CHECK (username = lower(username)),
-    CONSTRAINT accounts_password_hash_chk  CHECK (password_hash <> ''),
-    CONSTRAINT accounts_status_chk         CHECK (status IN ('ACTIVE'))
-);
-
-CREATE UNIQUE INDEX accounts_email_uq    ON users.accounts (email);
-CREATE UNIQUE INDEX accounts_username_uq ON users.accounts (username);
-
--- ---------------------------------------------------------------------------
--- Profile (1–1 với Account, tạo cùng transaction – USER-R7)
+-- Profile (1–1 với Account của module account, tạo ngay sau Account – ACCOUNT-R7).
+-- user_id = account.accounts.id; tham chiếu chéo module chỉ bằng id, không có FK.
 -- ---------------------------------------------------------------------------
 CREATE TABLE users.profiles (
-    user_id          bigint      PRIMARY KEY REFERENCES users.accounts (id),
+    user_id          bigint      PRIMARY KEY,
+    username         text        NOT NULL,                 -- bản sao account.accounts.username, đồng bộ khi đổi (saga)
     name             text        NOT NULL,
     bio              text,                                 -- rỗng thì lưu NULL
     avatar_key       text,                                 -- key bucket media, không kèm bucket
@@ -37,6 +18,7 @@ CREATE TABLE users.profiles (
     created_at       timestamptz NOT NULL DEFAULT now(),
     updated_at       timestamptz NOT NULL DEFAULT now(),
 
+    CONSTRAINT profiles_username_lower_chk  CHECK (username = lower(username) AND username <> ''),
     CONSTRAINT profiles_name_len_chk        CHECK (char_length(name) BETWEEN 1 AND 50),
     CONSTRAINT profiles_bio_len_chk         CHECK (bio IS NULL OR char_length(bio) BETWEEN 1 AND 150),
     CONSTRAINT profiles_avatar_pair_chk     CHECK ((avatar_key IS NULL) = (avatar_thumb_key IS NULL)),
@@ -45,12 +27,15 @@ CREATE TABLE users.profiles (
     CONSTRAINT profiles_post_count_chk      CHECK (post_count      >= 0)
 );
 
+-- Bản sao username cũng duy nhất; đổi username giữa hai module ràng buộc bằng saga.
+CREATE UNIQUE INDEX profiles_username_uq ON users.profiles (username);
+
 -- ---------------------------------------------------------------------------
 -- Follow
 -- ---------------------------------------------------------------------------
 CREATE TABLE users.follows (
-    follower_id bigint      NOT NULL REFERENCES users.accounts (id),
-    followee_id bigint      NOT NULL REFERENCES users.accounts (id),
+    follower_id bigint      NOT NULL,
+    followee_id bigint      NOT NULL,
     created_at  timestamptz NOT NULL DEFAULT now(),
 
     PRIMARY KEY (follower_id, followee_id),                -- danh sách following (prefix follower_id)
@@ -69,8 +54,8 @@ CREATE INDEX follows_following_idx
 -- Block
 -- ---------------------------------------------------------------------------
 CREATE TABLE users.blocks (
-    blocker_id bigint      NOT NULL REFERENCES users.accounts (id),
-    blocked_id bigint      NOT NULL REFERENCES users.accounts (id),
+    blocker_id bigint      NOT NULL,
+    blocked_id bigint      NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
 
     PRIMARY KEY (blocker_id, blocked_id),                  -- kiểm tra A block B
@@ -89,5 +74,4 @@ CREATE INDEX blocks_list_idx
 DROP TABLE users.blocks;
 DROP TABLE users.follows;
 DROP TABLE users.profiles;
-DROP TABLE users.accounts;
 DROP SCHEMA users;

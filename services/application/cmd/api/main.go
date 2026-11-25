@@ -18,6 +18,8 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/htan06/Moments/application/config"
+	accountuser "github.com/htan06/Moments/application/internal/account/adapter/user"
+	accountmodule "github.com/htan06/Moments/application/internal/account/module"
 	"github.com/htan06/Moments/application/internal/platform"
 	"github.com/htan06/Moments/application/internal/platform/httpx"
 	usermodule "github.com/htan06/Moments/application/internal/user/module"
@@ -40,8 +42,9 @@ func run(log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Local dev: load .env from the working directory if present. Variables
-	// already set in the environment win; production sets them directly.
+	// Local dev (go run from services/application/): load .env (localhost
+	// addresses) if present. Variables already set in the environment win; the
+	// container gets its variables from .env.docker via compose.
 	if err := godotenv.Load(); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("load .env: %w", err)
 	}
@@ -70,28 +73,32 @@ func run(log *slog.Logger) error {
 		c.Status(http.StatusNoContent)
 	})
 
-	user, err := usermodule.New(usermodule.Deps{
+	// user first: account creates profiles through it (ACCOUNT-R7).
+	user := usermodule.New(usermodule.Deps{DB: plat.DB})
+
+	account, err := accountmodule.New(accountmodule.Deps{
 		DB:        plat.DB,
 		Redis:     plat.Redis,
 		Publisher: plat.Publisher,
 		Tokens:    plat.Tokens,
+		Profiles:  accountuser.NewProfiles(user),
 		Log:       log,
-		Policy: usermodule.Policy{
-			OTPTTL:            cfg.User.OTPTTL,
-			OTPResendCooldown: cfg.User.OTPResendCooldown,
-			OTPMaxAttempts:    cfg.User.OTPMaxAttempts,
-			LoginMaxAttempts:  cfg.User.LoginMaxAttempts,
-			LoginWindow:       cfg.User.LoginWindow,
-			BcryptCost:        cfg.User.BcryptCost,
-			ReservedUsernames: cfg.User.ReservedUsernames,
-			MailExchange:      cfg.User.MailExchange,
-			MailRoutingKey:    cfg.User.MailRoutingKey,
+		Policy: accountmodule.Policy{
+			OTPTTL:            cfg.Account.OTPTTL,
+			OTPResendCooldown: cfg.Account.OTPResendCooldown,
+			OTPMaxAttempts:    cfg.Account.OTPMaxAttempts,
+			LoginMaxAttempts:  cfg.Account.LoginMaxAttempts,
+			LoginWindow:       cfg.Account.LoginWindow,
+			BcryptCost:        cfg.Account.BcryptCost,
+			ReservedUsernames: cfg.Account.ReservedUsernames,
+			MailExchange:      cfg.Account.MailExchange,
+			MailRoutingKey:    cfg.Account.MailRoutingKey,
 		},
 	})
 	if err != nil {
 		return err
 	}
-	user.RegisterRoutes(engine)
+	account.RegisterRoutes(engine)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTP.Addr,
