@@ -8,7 +8,7 @@ CREATE TABLE profile.users (
   avatar_key text,
   avatar_thumbnail_key text,
   bio text,
-  followers_count int NOT NULL DEFAULT 0,
+  followers_count bigint NOT NULL DEFAULT 0,
   following_count int NOT NULL DEFAULT 0,
   posts_count int NOT NULL DEFAULT 0,
   username_updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,

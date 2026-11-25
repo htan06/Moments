@@ -1,0 +1,577 @@
+openapi: 3.0.0
+info:
+  title: Moments Post API
+  description: |
+    Post service API (Moments).
+
+    > Tất cả các endpoint đều yêu cầu **Authorization: Bearer <JWT Access Token>** (RS256).
+    > Token chứa claims `user_id`, `user_status`, `username` (`sub` = email).
+    > Middleware: `requireAccessToken` + `requireActiveUser` → user phải `ACTIVE`.
+  version: 1.0.0
+  contact:
+    name: Post Service
+servers:
+  - url: http://localhost:8080
+    description: Local dev
+  - url: https://api.moments.app
+    description: Production
+tags:
+  - name: Post
+    description: Post CRUD, upload flow, feed, likes
+  - name: Media
+    description: Media upload sessions & presigned URLs
+security:
+  - BearerAuth: []
+
+paths:
+  /posts/session:
+    post:
+      tags: [Post, Media]
+      summary: Tạo phiên tạo post (Create Post Session)
+      description: |
+        `HandleCreatePostSession` → `ExecuteCreateSession`.
+        Tạo `CreatePostSession` cho user hiện tại (lấy từ JWT).
+      operationId: createPostSession
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Không cần body — `UserID` lấy từ JWT.
+      responses:
+        '201':
+          description: Tạo session thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /posts/session/urls:
+    post:
+      tags: [Post, Media]
+      summary: Xin presigned upload URLs
+      description: |
+        `HandleRequestUploadURLs` → `ExecuteRequestUploadURLs`.
+        Xin presigned URLs để upload ảnh/video lên object storage (RustFS/S3).
+        Request body: `{session_id, images_count, videos_count}`.
+      operationId: requestUploadURLs
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestUploadURLsRequest'
+            examples:
+              default:
+                summary: Xin 2 ảnh + 1 video
+                value:
+                  session_id: "550e8400-e29b-41d4-a716-446655440000"
+                  images_count: 2
+                  videos_count: 1
+      responses:
+        '201':
+          description: Trả về danh sách media uploads
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestUploadURLsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /posts:
+    post:
+      tags: [Post, Media]
+      summary: Upload / tạo post (2-step flow bước cuối)
+      description: |
+        `HandleUploadPost` → `ExecuteUploadPost`.
+        Luồng tạo post 2 bước: (1) tạo session + xin presigned URLs + upload file trực tiếp lên S3/RustFS, (2) gọi API này để finalize post.
+        `media_keys` phải là các key đã được cấp trong bước (1) và thuộc đúng session.
+        `thumbnail` tự sinh từ `medias_key[0] + "-thumbnail.jpeg"`.
+      operationId: uploadPost
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadPostRequest'
+      responses:
+        '201':
+          description: Tạo post thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadPostResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Post]
+      summary: Lấy danh sách post theo tác giả (cursor pagination)
+      description: |
+        `HandleGetPosts` → `GetPostsByCursorUC`.
+        Lấy post của một author, phân trang bằng cursor (UnixMicro của post cuối cùng).
+        `viewer_id` lấy từ JWT; `author_id` là query param bắt buộc.
+      operationId: getPostsByAuthor
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: author_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID tác giả cần lấy post
+          example: 1
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+          description: Cursor (UnixMicro). Lần đầu 0 hoặc bỏ trống.
+          example: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Số lượng post mỗi trang
+          example: 20
+      responses:
+        '200':
+          description: Danh sách post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPostsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /posts/feed/following:
+    get:
+      tags: [Post]
+      summary: Lấy feed following
+      description: |
+        `HandleGetFollowingFeed` → `GetFollowingFeedUC`.
+        Lấy post từ những người follow, phân trang cursor.
+      operationId: getFollowingFeed
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+          description: Cursor (UnixMicro)
+          example: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Số lượng post mỗi trang
+          example: 20
+      responses:
+        '200':
+          description: Feed following
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetFollowingFeedResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /posts/{postID}:
+    delete:
+      tags: [Post]
+      summary: Xoá post
+      description: |
+        `HandleDeletePost` → `DeletePostUC`.
+        Chỉ chủ post mới xoá được (check `UserID` từ JWT).
+      operationId: deletePost
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: postID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID bài đăng
+          example: 1
+      responses:
+        '204':
+          description: Xoá thành công (no content)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /posts/{postID}/likes:
+    post:
+      tags: [Post]
+      summary: Like post
+      description: |
+        `HandleLikePost` → `LikePostUC`.
+      operationId: likePost
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: postID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID bài đăng
+          example: 1
+      responses:
+        '200':
+          description: Like thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Post]
+      summary: Unlike post
+      description: |
+        `HandleUnlikePost` → `UnlikePostUC`.
+      operationId: unlikePost
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: postID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID bài đăng
+          example: 1
+      responses:
+        '204':
+          description: Unlike thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Access Token (RS256).
+        Header: `Authorization: Bearer <token>`
+        Claims: `{ "user_id": 1, "user_status": "ACTIVE", "username": "john", "sub": "john@example.com" }`
+
+  responses:
+    BadRequest:
+      description: "Bad Request — JSON bind error hoặc `postID` không hợp lệ (parse int64 fail)"
+      content:
+        application/json:
+          schema:
+            type: string
+          example: "400 Bad Request"
+    Unauthorized:
+      description: |
+        "Unauthorized — thiếu/sai `Authorization: Bearer` header, token hết hạn/sai chữ ký (`TOKEN_INVALID`), chưa có `currentUser` trong context, hoặc `user_status != ACTIVE` (`RequireUserActive`).
+        `jwt_middleware.go` chỉ `return` khi thiếu scheme Bearer (không abort) — handler sau đó trả 401 vì `GetCurrentUser` fail."
+      content:
+        application/json:
+          schema:
+            type: string
+          example: "401 Unauthorized"
+    NotFound:
+      description: "Not Found — `USER_NOT_FOUND`"
+      content:
+        application/json:
+          schema:
+            type: string
+          example: "USER_NOT_FOUND"
+    UnprocessableEntity:
+      description: |
+        "422 Unprocessable Entity — `MEDIA_COUNT_INVALID` hoặc `ASPECT_RATIO_INVALID` (`err_handler.go`)."
+      content:
+        application/json:
+          schema:
+            type: string
+          example: "MEDIA_COUNT_INVALID"
+    InternalError:
+      description: "Internal Server Error — lỗi nội bộ (500). Không trả body chi tiết (chỉ log `ERROR:`)."
+      content:
+        application/json:
+          schema:
+            type: string
+          example: "500 Internal Server Error"
+
+  schemas:
+    ContentChild:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [text, mention, hashtag]
+        text:
+          type: string
+          description: "Có cho text"
+        user_id:
+          type: integer
+          format: int64
+          description: "Có cho mention"
+        name:
+          type: string
+          description: "Có cho hashtag (đã chuẩn hoá, không #)"
+    Content:
+      type: object
+      description: "AST content (`vo.Content`)"
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentChild'
+      required: [nodes]
+
+    Visibility:
+      type: string
+      enum: [PRIVATE, PUBLIC, FRIEND]
+    AspectRatio:
+      type: string
+      enum: [SQUARE, CLASSIC, STANDARD, PORTRAIT, WIDESCREEN]
+      description: "SQUARE=1:1, CLASSIC=3:2, STANDARD=4:3, PORTRAIT=3:4, WIDESCREEN=16:9"
+
+    MediaUpload:
+      type: object
+      properties:
+        media_key:
+          type: string
+          example: "550e8400-e29b-41d4-a716-446655440000.jpeg"
+        upload_url:
+          type: string
+          format: uri
+          description: Presigned PUT URL (S3/RustFS), dùng để upload trực tiếp
+      required: [media_key, upload_url]
+
+    CreateSessionResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    RequestUploadURLsRequest:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        images_count:
+          type: integer
+          format: int32
+          minimum: 0
+          description: |
+            Số ảnh xin presigned URL. Code hiện tại: `count > 0` mới xử lý.
+            Gọi với video dùng đúng `images_count` cho cả video (bug đã biết: `RequestMediasKeys(cmd.ImageCount, entity.Video)`).
+        videos_count:
+          type: integer
+          format: int32
+          minimum: 0
+      required: [session_id]
+
+    RequestUploadURLsResponse:
+      type: object
+      properties:
+        media_uploads:
+          $ref: '#/components/schemas/RequestUploadURLsResp'
+    RequestUploadURLsResp:
+      type: object
+      properties:
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaUpload'
+        videos:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaUpload'
+
+    UploadPostRequest:
+      type: object
+      properties:
+        session_id:
+          type: string
+          description: Session ID nhận từ `POST /posts/session` (string)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        content:
+          $ref: '#/components/schemas/Content'
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        aspect_ratio:
+          $ref: '#/components/schemas/AspectRatio'
+        medias_key:
+          type: array
+          items:
+            type: string
+          description: "Danh sách media key (đã upload qua presigned URL). Tối đa 20."
+          example: ["550e8400-aaa.jpeg", "550e8400-bbb/index.m3u8"]
+      required: [session_id, content, visibility, aspect_ratio, medias_key]
+
+    UploadPostResponse:
+      type: object
+      properties:
+        post_id:
+          type: integer
+          format: int64
+          example: 1
+
+    PostMedia:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [IMAGE, VIDEO]
+        media_url:
+          type: string
+          format: uri
+          description: "Đã enrich thành `StorageAddress/PostsStorage/<media_key>` ở UC"
+        display_order:
+          type: integer
+        width:
+          type: integer
+        height:
+          type: integer
+        duration:
+          type: integer
+        size:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+
+    Post:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        author_id:
+          type: integer
+          format: int64
+          example: 1
+        author_name:
+          type: string
+          example: "John Doe"
+        author_username:
+          type: string
+          example: "john"
+        author_avatar_thumbnail_url:
+          type: string
+          nullable: true
+        content:
+          $ref: '#/components/schemas/Content'
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        thumbnail_url:
+          type: string
+          format: uri
+          description: "Đã enrich thành `StorageAddress/PostsStorage/<thumbnail_key>`"
+        media_count:
+          type: integer
+        medias:
+          type: array
+          items:
+            $ref: '#/components/schemas/PostMedia'
+        aspect_ratio:
+          $ref: '#/components/schemas/AspectRatio'
+        like_count:
+          type: integer
+        comment_count:
+          type: integer
+        is_liked:
+          type: boolean
+          description: Viewer hiện tại đã like chưa
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    GetPostsResponse:
+      type: object
+      properties:
+        is_author:
+          type: boolean
+          description: "true nếu `viewer_id == author_id`"
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        current_cursor:
+          type: integer
+          format: int64
+          description: Cursor cho trang tiếp theo (UnixMicro của post cuối). 0 nếu hết.
+          example: 1700000000000000
+
+    GetFollowingFeedResponse:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        current_cursor:
+          type: integer
+          format: int64
+          example: 1700000000000000

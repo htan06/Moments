@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/Moments/post/internal/adapter/inbound/http/middleware"
+	"github.com/htan06/Moments/post/internal/adapter/inbound/http"
 	"github.com/htan06/Moments/post/internal/adapter/outbound/connection"
 	"github.com/htan06/Moments/post/internal/config"
 
@@ -29,8 +29,8 @@ func main() {
 	postgresConn := connection.GetPostgresConn(config.PostgresConfig)
 	objStorageCli := connection.GetRustFSConn(config.RustFSConfig)
 
-	requireAccessToken := middleware.NewJWTMiddleware(config.AuthConfig).Require()
-	requireActiveUser := middleware.RequireUserStatus("ACTIVE")
+	requireAccessToken := http.NewJWTMiddleware(config.AuthConfig).Require()
+	requireActiveUser := http.RequireUserActive()
 
 	router := gin.Default()
 	v1 := router.Group("/api/v1")

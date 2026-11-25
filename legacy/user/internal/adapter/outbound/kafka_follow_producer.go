@@ -10,16 +10,12 @@ import (
 
 type KafakFollowProducer struct {
 	writer             *kafka.Writer
-	followCreatedTopic string
-	followDeletedTopic string
 }
 
 func NewKafakFollowProducer(cfg kafka.WriterConfig) *KafakFollowProducer {
 	cfg.RequiredAcks = 1
 	return &KafakFollowProducer{
 		writer:             kafka.NewWriter(cfg),
-		followCreatedTopic: "follow-created",
-		followDeletedTopic: "follow-deleted",
 	}
 }
 
@@ -39,7 +35,7 @@ func (k *KafakFollowProducer) PublishFollowCreated(ctx context.Context, e domain
 	if err != nil {
 		return fmt.Errorf("KafakFollowProducer.PublishFollowCreated: %w", err)
 	}
-	return k.sendMessage(ctx, k.followCreatedTopic, payload)
+	return k.sendMessage(ctx, FollowCreatedTopic, payload)
 }
 
 func (k *KafakFollowProducer) PublishFollowDeleted(ctx context.Context, e domain.FollowDeleted) error {
@@ -47,5 +43,5 @@ func (k *KafakFollowProducer) PublishFollowDeleted(ctx context.Context, e domain
 	if err != nil {
 		return fmt.Errorf("KafakFollowProducer.PublishFollowDeleted: %w", err)
 	}
-	return k.sendMessage(ctx, k.followDeletedTopic, payload)
+	return k.sendMessage(ctx, FollowDeletedTopic, payload)
 }

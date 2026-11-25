@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/htan06/Moments/post/internal/application/domain/event"
-	"github.com/htan06/Moments/post/internal/ports/outbound"
+	"github.com/htan06/Moments/post/internal/application/ports"
+	"github.com/htan06/Moments/post/internal/domain/event"
 )
 
 type LikePostCmd struct {
@@ -15,35 +15,30 @@ type LikePostCmd struct {
 }
 
 type LikePostUC struct {
-	postRepo outbound.PostRepository
-	// cacheRepo    outbound.CacheRepository
-	postProducer outbound.PostProducer
+	postCreator ports.PostLiker
+	// cacheRepo    ports.CacheRepository
+	postProducer ports.PostEventPublisher
 }
 
 func NewLikePostUC(
-	postRepo outbound.PostRepository,
-	// cacheRepo outbound.CacheRepository,
-	postProducer outbound.PostProducer,
+	postCreator ports.PostLiker,
+	// cacheRepo ports.CacheRepository,
+	postProducer ports.PostEventPublisher,
 ) *LikePostUC {
 	return &LikePostUC{
-		postRepo: postRepo,
+		postCreator: postCreator,
 		// cacheRepo:    cacheRepo,
 		postProducer: postProducer,
 	}
 }
 
 func (l *LikePostUC) Execute(ctx context.Context, cmd LikePostCmd) error {
-	if err := l.postRepo.CreateLikePost(ctx, cmd.UserID, cmd.PostID); err != nil {
+	if err := l.postCreator.CreateLikePost(ctx, cmd.UserID, cmd.PostID); err != nil {
 		return fmt.Errorf("LikePostUC.Execute: %w", err)
 	}
 
 	go func() {
-		err := l.postProducer.SendInteractionEvent(context.Background(), event.InteractionEvent{
-			UserID:          cmd.UserID,
-			PostID:          cmd.PostID,
-			Action:          event.Created,
-			TypeInteraction: event.LikeInteraction,
-		})
+		err := l.postProducer.SendPostLiked(context.Background(), event.NewPostLiked(cmd.PostID, cmd.UserID))
 		if err != nil {
 			log.Println(err.Error())
 		}

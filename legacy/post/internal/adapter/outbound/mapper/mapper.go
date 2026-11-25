@@ -3,7 +3,7 @@ package mapper
 import (
 	"fmt"
 
-	"github.com/htan06/Moments/post/internal/application/domain/readmodel"
+	"github.com/htan06/Moments/post/internal/application/readmodel"
 	"github.com/jackc/pgx/v5"
 )
 

@@ -6,5 +6,5 @@ import (
 )
 
 func GetRustFSConn(cfg *aws.Config) *s3.Client {
-	return s3.NewFromConfig(*cfg)
+	return s3.NewFromConfig(*cfg, func(o *s3.Options) { o.UsePathStyle = true })
 }

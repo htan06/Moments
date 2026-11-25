@@ -12,9 +12,9 @@ type ProfileUser struct {
 	UserID             int64
 	Username           string
 	Name               string
-	AvatarKey          pgtype.Text
-	AvatarThumbnailKey pgtype.Text
-	Bio                pgtype.Text
+	AvatarKey          *string
+	AvatarThumbnailKey *string
+	Bio                *string
 	FollowersCount     int32
 	FollowingCount     int32
 	PostsCount         int32

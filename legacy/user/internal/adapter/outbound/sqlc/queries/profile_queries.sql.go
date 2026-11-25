@@ -7,8 +7,6 @@ package queries
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createProfile = `-- name: CreateProfile :exec
@@ -45,10 +43,10 @@ type FindProfilesByUsernameRow struct {
 	UserID             int64
 	Username           string
 	Name               string
-	AvatarThumbnailKey pgtype.Text
+	AvatarThumbnailKey *string
 }
 
-func (q *Queries) FindProfilesByUsername(ctx context.Context, dollar_1 pgtype.Text) ([]FindProfilesByUsernameRow, error) {
+func (q *Queries) FindProfilesByUsername(ctx context.Context, dollar_1 *string) ([]FindProfilesByUsernameRow, error) {
 	rows, err := q.db.Query(ctx, findProfilesByUsername, dollar_1)
 	if err != nil {
 		return nil, err
@@ -77,9 +75,9 @@ const getAvatarKeyByUserID = `-- name: GetAvatarKeyByUserID :one
 SELECT avatar_key FROM profile.users WHERE user_id = $1
 `
 
-func (q *Queries) GetAvatarKeyByUserID(ctx context.Context, userID int64) (pgtype.Text, error) {
+func (q *Queries) GetAvatarKeyByUserID(ctx context.Context, userID int64) (*string, error) {
 	row := q.db.QueryRow(ctx, getAvatarKeyByUserID, userID)
-	var avatar_key pgtype.Text
+	var avatar_key *string
 	err := row.Scan(&avatar_key)
 	return avatar_key, err
 }
@@ -119,9 +117,9 @@ type GetOtherProfileByUsernameRow struct {
 	UserID             int64
 	Username           string
 	Name               string
-	AvatarKey          pgtype.Text
-	AvatarThumbnailKey pgtype.Text
-	Bio                pgtype.Text
+	AvatarKey          *string
+	AvatarThumbnailKey *string
+	Bio                *string
 	FollowersCount     int32
 	FollowingCount     int32
 	PostsCount         int32
@@ -176,7 +174,7 @@ type GetProfilesByUserIDsRow struct {
 	UserID             int64
 	Username           string
 	Name               string
-	AvatarThumbnailKey pgtype.Text
+	AvatarThumbnailKey *string
 	RelationshipType   interface{}
 }
 
@@ -228,9 +226,9 @@ type GetSelfProfileByUsernameRow struct {
 	UserID             int64
 	Username           string
 	Name               string
-	AvatarKey          pgtype.Text
-	AvatarThumbnailKey pgtype.Text
-	Bio                pgtype.Text
+	AvatarKey          *string
+	AvatarThumbnailKey *string
+	Bio                *string
 	FollowersCount     int32
 	FollowingCount     int32
 	PostsCount         int32
@@ -260,8 +258,8 @@ UPDATE profile.users SET avatar_key = $1, avatar_thumbnail_key = $2 WHERE user_i
 `
 
 type UpdateAvatarKeyAndAvatarThumbnailKeyParams struct {
-	AvatarKey          pgtype.Text
-	AvatarThumbnailKey pgtype.Text
+	AvatarKey          *string
+	AvatarThumbnailKey *string
 	UserID             int64
 }
 

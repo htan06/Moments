@@ -14,14 +14,14 @@ type KafakUserProducer struct {
 }
 
 func NewKafakUserProducer(cfg kafka.WriterConfig) *KafakUserProducer {
-	cfg.Topic = "media-domain"
+	cfg.Topic = MediaJobTopic
 	return &KafakUserProducer{
 		writer: kafka.NewWriter(cfg),
 	}
 }
 
-func (k *KafakUserProducer) SendJob(ctx context.Context, domain domain.ProcessMediaJob) error {
-	payload, err := json.Marshal(domain)
+func (k *KafakUserProducer) SendJob(ctx context.Context, job domain.ProcessMediaJob) error {
+	payload, err := json.Marshal(job)
 	if err != nil {
 		return fmt.Errorf("KafakUserProducer.SendJob: %w", err)
 	}

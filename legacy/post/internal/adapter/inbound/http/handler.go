@@ -1,4 +1,4 @@
-package handler
+package http
 
 import (
 	"net/http"
@@ -6,14 +6,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/htan06/Moments/post/internal/application/domain/entity"
-	"github.com/htan06/Moments/post/internal/application/domain/vo"
 	"github.com/htan06/Moments/post/internal/application/feature"
+	"github.com/htan06/Moments/post/internal/domain/entity"
+	"github.com/htan06/Moments/post/internal/domain/vo"
 )
 
 type PostHandler struct {
-	createPostUC       *feature.CreatePostUC
-	getPostUC          *feature.GetPostUC
+	createPostUC *feature.CreatePostUC
+	// getPostUC          *feature.GetPostUC
 	getPostsByCursorUC *feature.GetPostsByCursorUC
 	getFollowingFeed   *feature.GetFollowingFeedUC
 	deletePostUC       *feature.DeletePostUC
@@ -21,35 +21,35 @@ type PostHandler struct {
 	likePostUC   *feature.LikePostUC
 	unlikePostUC *feature.UnlikePostUC
 
-	getUserRepostsUC *feature.GetRepostsUC
-	createRepostUC   *feature.CreateRepostUC
-	deleteRepostUC   *feature.DeleteRepostUC
+	// getUserRepostsUC *feature.GetRepostsUC
+	// createRepostUC   *feature.CreateRepostUC
+	// deleteRepostUC   *feature.DeleteRepostUC
 }
 
 func NewPostHandler(
 	createPostUC *feature.CreatePostUC,
-	getPostUC *feature.GetPostUC,
+	// getPostUC *feature.GetPostUC,
 	getPostsByCursorUC *feature.GetPostsByCursorUC,
 	getFollowingFeed *feature.GetFollowingFeedUC,
 	deletePostUC *feature.DeletePostUC,
 	likePostUC *feature.LikePostUC,
 	unlikePostUC *feature.UnlikePostUC,
-	getRepostsUC *feature.GetRepostsUC,
-	createRepostUC *feature.CreateRepostUC,
-	deleteRepostUC *feature.DeleteRepostUC,
+	// getRepostsUC *feature.GetRepostsUC,
+	// createRepostUC *feature.CreateRepostUC,
+	// deleteRepostUC *feature.DeleteRepostUC,
 ) *PostHandler {
 	return &PostHandler{
-		createPostUC:       createPostUC,
-		getPostUC:          getPostUC,
+		createPostUC: createPostUC,
+		// getPostUC:          getPostUC,
 		getPostsByCursorUC: getPostsByCursorUC,
 		getFollowingFeed:   getFollowingFeed,
 
-		deletePostUC:     deletePostUC,
-		likePostUC:       likePostUC,
-		unlikePostUC:     unlikePostUC,
-		getUserRepostsUC: getRepostsUC,
-		createRepostUC:   createRepostUC,
-		deleteRepostUC:   deleteRepostUC,
+		deletePostUC: deletePostUC,
+		likePostUC:   likePostUC,
+		unlikePostUC: unlikePostUC,
+		// getUserRepostsUC: getRepostsUC,
+		// createRepostUC:   createRepostUC,
+		// deleteRepostUC:   deleteRepostUC,
 	}
 }
 
@@ -63,11 +63,11 @@ func (ph *PostHandler) HandleUploadPost(c *gin.Context) {
 	}
 
 	var req struct {
-		UploadSessionID string                `json:"session_id"`
-		Contents        []vo.Content          `json:"contents"`
-		Visibility      entity.Visibility     `json:"visibility"`
-		AspectRatio     string                `json:"aspect_ratio"`
-		MediaUploads    []feature.MediaUpload `json:"media_uploads"`
+		UploadSessionID string            `json:"session_id"`
+		Content         vo.Content        `json:"content"`
+		Visibility      entity.Visibility `json:"visibility"`
+		AspectRatio     vo.AspectRatio    `json:"aspect_ratio"`
+		MediaKeys       []string          `json:"medias_key"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -78,10 +78,10 @@ func (ph *PostHandler) HandleUploadPost(c *gin.Context) {
 	cmd := feature.UploadPostCmd{
 		UpLoadSessionID: req.UploadSessionID,
 		AuthorID:        currentuser.ID(),
-		Contents:        req.Contents,
+		Content:         req.Content,
 		Visibility:      req.Visibility,
 		AspectRatio:     req.AspectRatio,
-		MediaUploads:    req.MediaUploads,
+		MediasKey:       req.MediaKeys,
 	}
 
 	postID, err := ph.createPostUC.ExecuteUploadPost(ctx, cmd)
@@ -98,33 +98,23 @@ func (ph *PostHandler) HandleUploadPost(c *gin.Context) {
 func (ph *PostHandler) HandleCreatePostSession(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var req struct {
-		MediaCount int `json:"media_count"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Status(http.StatusBadRequest)
-		return
-	}
-
 	currentUser, exists := GetCurrentUser(c)
 	if !exists {
 		c.Status(http.StatusUnauthorized)
 		return
 	}
 
-	cmd := feature.CreatePostSessionCmd{
-		UserID:     currentUser.ID(),
-		MediaCount: req.MediaCount,
+	cmd := feature.CreateSessionCmd{
+		UserID: currentUser.ID(),
 	}
 
-	res, err := ph.createPostUC.ExecuteCreatePostSession(ctx, cmd)
+	res, err := ph.createPostUC.ExecuteCreateSession(ctx, cmd)
 	if err != nil {
 		HandleError(c, err)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"session_id":    res.SessionID,
-		"media_uploads": res.MediaUploads,
+		"session_id": res.SessionID,
 	})
 }
 
@@ -132,8 +122,9 @@ func (ph *PostHandler) HandleRequestUploadURLs(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	var req struct {
-		SessionID  uuid.UUID `json:"session_id"`
-		MediaCount int       `json:"media_count"`
+		SessionID   uuid.UUID `json:"session_id"`
+		ImagesCount int32     `json:"images_count"`
+		VideosCount int32     `json:"videos_count"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Status(http.StatusBadRequest)
@@ -146,10 +137,11 @@ func (ph *PostHandler) HandleRequestUploadURLs(c *gin.Context) {
 		return
 	}
 
-	cmd := feature.RequestUploadURLs{
+	cmd := feature.RequestUploadURLsCmd{
 		SessionID:  req.SessionID,
 		AuthorID:   currentUser.ID(),
-		MediaCount: req.MediaCount,
+		ImageCount: req.ImagesCount,
+		VideoCount: req.VideosCount,
 	}
 
 	mediaUploads, err := ph.createPostUC.ExecuteRequestUploadURLs(ctx, cmd)
@@ -162,23 +154,23 @@ func (ph *PostHandler) HandleRequestUploadURLs(c *gin.Context) {
 	})
 }
 
-func (ph *PostHandler) HandleGetPost(c *gin.Context) {
-	ctx := c.Request.Context()
+// func (ph *PostHandler) HandleGetPost(c *gin.Context) {
+// 	ctx := c.Request.Context()
 
-	postID, err := strconv.ParseInt(c.Param("postID"), 10, 64)
-	if err != nil {
-		c.Status(http.StatusBadRequest)
-		return
-	}
+// 	postID, err := strconv.ParseInt(c.Param("postID"), 10, 64)
+// 	if err != nil {
+// 		c.Status(http.StatusBadRequest)
+// 		return
+// 	}
 
-	post, err := ph.getPostUC.Execute(ctx, postID)
-	if err != nil {
-		HandleError(c, err)
-		return
-	}
+// 	post, err := ph.getPostUC.Execute(ctx, postID)
+// 	if err != nil {
+// 		HandleError(c, err)
+// 		return
+// 	}
 
-	c.JSON(http.StatusOK, post)
-}
+// 	c.JSON(http.StatusOK, post)
+// }
 
 func (ph *PostHandler) HandleDeletePost(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -312,78 +304,78 @@ func (ph *PostHandler) HandleUnlikePost(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-func (ph *PostHandler) HandleGetRepostsByUsername(c *gin.Context) {
-	ctx := c.Request.Context()
+// func (ph *PostHandler) HandleGetRepostsByUsername(c *gin.Context) {
+// 	ctx := c.Request.Context()
 
-	username := c.Param("username")
-	if username == "" {
-		c.Status(http.StatusBadRequest)
-		return
-	}
+// 	username := c.Param("username")
+// 	if username == "" {
+// 		c.Status(http.StatusBadRequest)
+// 		return
+// 	}
 
-	posts, err := ph.getUserRepostsUC.Execute(ctx, username)
-	if err != nil {
-		HandleError(c, err)
-		return
-	}
+// 	posts, err := ph.getUserRepostsUC.Execute(ctx, username)
+// 	if err != nil {
+// 		HandleError(c, err)
+// 		return
+// 	}
 
-	c.JSON(http.StatusOK, posts)
-}
+// 	c.JSON(http.StatusOK, posts)
+// }
 
-func (ph *PostHandler) HandleCreateRepost(c *gin.Context) {
-	ctx := c.Request.Context()
+// func (ph *PostHandler) HandleCreateRepost(c *gin.Context) {
+// 	ctx := c.Request.Context()
 
-	var req struct {
-		PostID int64 `json:"post_id"`
-	}
+// 	var req struct {
+// 		PostID int64 `json:"post_id"`
+// 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Status(http.StatusBadRequest)
-		return
-	}
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.Status(http.StatusBadRequest)
+// 		return
+// 	}
 
-	currentUser, exists := GetCurrentUser(c)
-	if !exists {
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
+// 	currentUser, exists := GetCurrentUser(c)
+// 	if !exists {
+// 		c.AbortWithStatus(http.StatusUnauthorized)
+// 		return
+// 	}
 
-	cmd := feature.CreateRepostCmd{
-		UserID: currentUser.ID(),
-		PostID: req.PostID,
-	}
-	id, err := ph.createRepostUC.Execute(ctx, cmd)
-	if err != nil {
-		HandleError(c, err)
-		return
-	}
+// 	cmd := feature.CreateRepostCmd{
+// 		UserID: currentUser.ID(),
+// 		PostID: req.PostID,
+// 	}
+// 	id, err := ph.createRepostUC.Execute(ctx, cmd)
+// 	if err != nil {
+// 		HandleError(c, err)
+// 		return
+// 	}
 
-	c.JSON(http.StatusOK, gin.H{"repost_id": id})
-}
+// 	c.JSON(http.StatusOK, gin.H{"repost_id": id})
+// }
 
-func (ph *PostHandler) HandleDeleteRepost(c *gin.Context) {
-	ctx := c.Request.Context()
+// func (ph *PostHandler) HandleDeleteRepost(c *gin.Context) {
+// 	ctx := c.Request.Context()
 
-	repostID, err := strconv.ParseInt(c.Param("repostID"), 10, 64)
-	if err != nil {
-		c.Status(http.StatusBadRequest)
-		return
-	}
+// 	repostID, err := strconv.ParseInt(c.Param("repostID"), 10, 64)
+// 	if err != nil {
+// 		c.Status(http.StatusBadRequest)
+// 		return
+// 	}
 
-	currentUser, exists := GetCurrentUser(c)
-	if !exists {
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
+// 	currentUser, exists := GetCurrentUser(c)
+// 	if !exists {
+// 		c.AbortWithStatus(http.StatusUnauthorized)
+// 		return
+// 	}
 
-	cmd := feature.DeleteRepostCmd{
-		UserID:   currentUser.ID(),
-		RepostID: repostID,
-	}
-	if err := ph.deleteRepostUC.Execute(ctx, cmd); err != nil {
-		HandleError(c, err)
-		return
-	}
+// 	cmd := feature.DeleteRepostCmd{
+// 		UserID:   currentUser.ID(),
+// 		RepostID: repostID,
+// 	}
+// 	if err := ph.deleteRepostUC.Execute(ctx, cmd); err != nil {
+// 		HandleError(c, err)
+// 		return
+// 	}
 
-	c.Status(http.StatusNoContent)
-}
+// 	c.Status(http.StatusNoContent)
+// }

@@ -1,4 +1,4 @@
-package handler
+package http
 
 import (
 	"errors"
@@ -6,25 +6,29 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/htan06/Moments/post/internal/errs"
+	"github.com/htan06/Moments/post/internal/domain"
 )
 
-var errorTypeTable = map[errs.ErrorType]int{
-	errs.Invalid:               http.StatusUnprocessableEntity,
-	errs.Incorrect:             http.StatusUnprocessableEntity,
-	errs.Conflict:              http.StatusConflict,
-	errs.NotFound:              http.StatusNotFound,
-	errs.AuthenticationFailure: http.StatusUnauthorized,
+var businessError = map[error]int{
+	domain.ErrUserNotFound:       http.StatusNotFound,
+	domain.ErrMediaCountInvalid:  http.StatusUnprocessableEntity,
+	domain.ErrAspectRatioInvalid: http.StatusUnprocessableEntity,
+}
+
+func toHTTPCode(e error) int {
+	for be, code := range businessError {
+		if errors.Is(e, be) {
+			return code
+		}
+	}
+	return http.StatusInternalServerError
 }
 
 func HandleError(c *gin.Context, err error) {
-	if e, ok := errors.AsType[*errs.Error](err); ok {
-		if httpCode, ok := errorTypeTable[e.Type]; ok {
-			c.JSON(httpCode, gin.H{
-				"error_code": e.Code,
-			})
-			return
-		}
+	httpCode := toHTTPCode(err)
+	if httpCode < 500 || httpCode >= 600 {
+		c.JSON(httpCode, err.Error())
+		return
 	}
 
 	fmt.Println("ERROR: ", err.Error())

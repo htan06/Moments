@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/htan06/Moments/post/internal/application/domain/event"
-	"github.com/htan06/Moments/post/internal/ports/outbound"
+	// "github.com/htan06/Moments/post/internal/application/domain/event"
+	"github.com/htan06/Moments/post/internal/application/ports"
+	"github.com/htan06/Moments/post/internal/domain/event"
 )
 
 type UnlikePostCmd struct {
@@ -15,32 +16,27 @@ type UnlikePostCmd struct {
 }
 
 type UnlikePostUC struct {
-	postRepo     outbound.PostRepository
-	postProducer outbound.PostProducer
+	postDeleter  ports.PostLikeRemover
+	postProducer ports.PostEventPublisher
 }
 
 func NewUnlikePostUC(
-	postRepo outbound.PostRepository,
-	postProducer outbound.PostProducer,
+	postDeleter ports.PostLikeRemover,
+	postProducer ports.PostEventPublisher,
 ) *UnlikePostUC {
 	return &UnlikePostUC{
-		postRepo:     postRepo,
+		postDeleter:  postDeleter,
 		postProducer: postProducer,
 	}
 }
 
 func (l *UnlikePostUC) Execute(ctx context.Context, cmd UnlikePostCmd) error {
-	if err := l.postRepo.DeleteLikePost(ctx, cmd.UserID, cmd.PostID); err != nil {
+	if err := l.postDeleter.DeleteLikePost(ctx, cmd.UserID, cmd.PostID); err != nil {
 		return fmt.Errorf("UnlikePostUC.Execute: %w", err)
 	}
 
 	go func() {
-		err := l.postProducer.SendInteractionEvent(context.Background(), event.InteractionEvent{
-			UserID:          cmd.UserID,
-			PostID:          cmd.PostID,
-			Action:          event.Deleted,
-			TypeInteraction: event.LikeInteraction,
-		})
+		err := l.postProducer.SendPostUnliked(context.Background(), event.NewPostUnliked(cmd.PostID, cmd.UserID))
 		if err != nil {
 			log.Println(err.Error())
 		}

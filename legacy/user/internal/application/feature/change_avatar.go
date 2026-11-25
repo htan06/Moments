@@ -107,7 +107,7 @@ func (cau *ChangeAvatar) ExecuteCompletedUpload(ctx context.Context, userID int6
 		return "", fmt.Errorf("ChangeAvatar.ExecuteCompletedUpload: %w", err)
 	}
 
-	if oldAvatarID != nil {
+	if oldAvatarID != nil && *oldAvatarID != "" {
 		if err := cau.objectStorage.Remove(ctx, config.AvatarsStorage, *oldAvatarID); err != nil {
 			return "", fmt.Errorf("ChangeAvatar.ExecuteCompletedUpload: %w", err)
 		}

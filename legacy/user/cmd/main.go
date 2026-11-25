@@ -52,6 +52,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go log.Fatal(grpcServer.Serve(lis))
-	go log.Fatal(httpRouter.Run(config.AppConfig.AppAddress))
+	go func() {
+		log.Fatal(grpcServer.Serve(lis))
+	}()
+	log.Fatal(httpRouter.Run(config.AppConfig.AppAddress))
 }

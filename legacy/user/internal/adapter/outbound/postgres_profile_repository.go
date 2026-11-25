@@ -11,7 +11,6 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -48,7 +47,7 @@ func (pur *PostgresProfileRepository) GetAvatarKeyByUserID(ctx context.Context, 
 	if err != nil {
 		return nil, fmt.Errorf("PostgresUserRepository.GetAvatarIDByUserID: %w", err)
 	}
-	return &avatarID.String, nil
+	return avatarID, nil
 }
 
 func (pur *PostgresProfileRepository) UpdateProfile(ctx context.Context, userID int64, fieldUpdates map[string]interface{}) error {
@@ -82,9 +81,9 @@ func (pur *PostgresProfileRepository) GetSelfProfileByUsername(ctx context.Conte
 		UserID:             row.UserID,
 		Username:           row.Username,
 		Name:               row.Name,
-		AvatarURL:          &row.AvatarKey.String,
-		AvatarThumbnailURL: &row.AvatarThumbnailKey.String,
-		Bio:                &row.Bio.String,
+		AvatarURL:          row.AvatarKey,
+		AvatarThumbnailURL: row.AvatarThumbnailKey,
+		Bio:                row.Bio,
 		FollowersCount:     row.FollowersCount,
 		FollowingCount:     row.FollowingCount,
 		PostsCount:         row.PostsCount,
@@ -109,9 +108,9 @@ func (pur *PostgresProfileRepository) GetOtherProfileByUsername(ctx context.Cont
 		UserID:             row.UserID,
 		Username:           row.Username,
 		Name:               row.Name,
-		AvatarURL:          &row.AvatarKey.String,
-		AvatarThumbnailURL: &row.AvatarThumbnailKey.String,
-		Bio:                &row.Bio.String,
+		AvatarURL:          row.AvatarKey,
+		AvatarThumbnailURL: row.AvatarThumbnailKey,
+		Bio:                row.Bio,
 		FollowersCount:     row.FollowersCount,
 		FollowingCount:     row.FollowingCount,
 		PostsCount:         row.PostsCount,
@@ -121,8 +120,8 @@ func (pur *PostgresProfileRepository) GetOtherProfileByUsername(ctx context.Cont
 
 func (pur *PostgresProfileRepository) UpdateAvatarKeyAndAvatarThumbnailKey(ctx context.Context, userID int64, avatarKey string, avatarThumbnailKey string) error {
 	err := pur.queries.UpdateAvatarKeyAndAvatarThumbnailKey(ctx, queries.UpdateAvatarKeyAndAvatarThumbnailKeyParams{
-		AvatarKey:          pgtype.Text{String: avatarKey, Valid: true},
-		AvatarThumbnailKey: pgtype.Text{String: avatarThumbnailKey, Valid: true},
+		AvatarKey:          &avatarKey,
+		AvatarThumbnailKey: &avatarThumbnailKey,
 		UserID:             userID,
 	})
 	if err != nil {
@@ -132,10 +131,7 @@ func (pur *PostgresProfileRepository) UpdateAvatarKeyAndAvatarThumbnailKey(ctx c
 }
 
 func (pur *PostgresProfileRepository) FindProfilesByUsername(ctx context.Context, username string) ([]readmodel.ProfileSummary, error) {
-	rows, err := pur.queries.FindProfilesByUsername(ctx, pgtype.Text{
-		String: username,
-		Valid:  true,
-	})
+	rows, err := pur.queries.FindProfilesByUsername(ctx, &username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return []readmodel.ProfileSummary{}, domain.ErrUserNotFound
@@ -149,7 +145,7 @@ func (pur *PostgresProfileRepository) FindProfilesByUsername(ctx context.Context
 			UserID:             r.UserID,
 			Username:           r.Username,
 			Name:               r.Name,
-			AvatarThumbnailURL: &r.AvatarThumbnailKey.String,
+			AvatarThumbnailURL: r.AvatarThumbnailKey,
 		})
 	}
 	return profileSummaries, nil
@@ -171,7 +167,7 @@ func (p *PostgresProfileRepository) GetProfilesSummary(ctx context.Context, curr
 			UserID:             p.UserID,
 			Username:           p.Username,
 			Name:               p.Name,
-			AvatarThumbnailURL: &p.AvatarThumbnailKey.String,
+			AvatarThumbnailURL: p.AvatarThumbnailKey,
 		})
 	}
 	return profiles, nil

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/htan06/Moments/post/internal/application/domain/readmodel"
+	"github.com/htan06/Moments/post/internal/application/ports"
+	"github.com/htan06/Moments/post/internal/application/readmodel"
 	"github.com/htan06/Moments/post/internal/config"
-	"github.com/htan06/Moments/post/internal/ports/outbound"
 )
 
 type GetFollowingFeedQry struct {
@@ -21,22 +21,19 @@ type GetFollowingFeedResp struct {
 }
 
 type GetFollowingFeedUC struct {
-	postRepo    outbound.PostRepository
-	counterRepo outbound.CounterRepository
+	postReader ports.FollowingFeedReader
 }
 
 func NewGetFollowingFeedUC(
-	postRepo outbound.PostRepository,
-	counterRepo outbound.CounterRepository,
+	postReader ports.FollowingFeedReader,
 ) *GetFollowingFeedUC {
 	return &GetFollowingFeedUC{
-		postRepo:    postRepo,
-		counterRepo: counterRepo,
+		postReader: postReader,
 	}
 }
 
 func (uc *GetFollowingFeedUC) Execute(ctx context.Context, qry GetFollowingFeedQry) (GetFollowingFeedResp, error) {
-	posts, err := uc.postRepo.GetPostsByFollowing(ctx, qry.ViewerID, qry.Cursor/1000000.0, qry.Size)
+	posts, err := uc.postReader.GetPostsByFollowing(ctx, qry.ViewerID, qry.Cursor/1000000.0, qry.Size)
 	if err != nil {
 		return GetFollowingFeedResp{}, fmt.Errorf("GetPostUC.Excute: %w", err)
 	}
@@ -53,18 +50,6 @@ func (uc *GetFollowingFeedUC) Execute(ctx context.Context, qry GetFollowingFeedQ
 			posts[i].Medias[j].MediaID = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.PostsStorage, posts[i].Medias[j].MediaID)
 		}
 		ids = append(ids, posts[i].ID)
-	}
-
-	postLike, err := uc.counterRepo.GetLikeCount(ctx, ids...)
-	if err != nil {
-		return GetFollowingFeedResp{}, fmt.Errorf("GetPostUC.Excute: %w", err)
-	}
-
-	for i := range posts {
-		realtimeLikeCount, ok := postLike[posts[i].ID]
-		if ok {
-			posts[i].LikeCount = int(realtimeLikeCount)
-		}
 	}
 
 	var cursor int64

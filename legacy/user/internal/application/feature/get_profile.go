@@ -45,11 +45,11 @@ func (gpu *GetProfile) Execute(ctx context.Context, qry GetProfileQry) (readmode
 		return readmodel.Profile{}, fmt.Errorf("NewGetProfile.Execute: %w", err)
 	}
 
-	if p.AvatarURL != nil {
+	if p.AvatarURL != nil && *p.AvatarURL != "" {
 		*p.AvatarURL = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarsStorage, *p.AvatarURL)
 	}
 
-	if p.AvatarThumbnailURL != nil {
+	if p.AvatarThumbnailURL != nil && *p.AvatarURL != ""{
 		*p.AvatarThumbnailURL = fmt.Sprintf("%s/%s/%s", config.StorageAddress, config.AvatarsStorage, *p.AvatarThumbnailURL)
 	}
 
