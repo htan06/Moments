@@ -109,3 +109,30 @@ func TestIsEmailIdentifier(t *testing.T) {
 		t.Fatal("IsEmailIdentifier misclassified")
 	}
 }
+
+func TestSetPasswordHash(t *testing.T) {
+	tests := []struct {
+		name    string
+		hash    string
+		wantErr error
+	}{
+		{"new hash", "hash:new", nil},
+		{"empty hash", "", ErrInvalidPassword},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := Account{PasswordHash: "hash:old"}
+			err := a.SetPasswordHash(tt.hash)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+			want := tt.hash
+			if tt.wantErr != nil {
+				want = "hash:old"
+			}
+			if a.PasswordHash != want {
+				t.Fatalf("hash = %q, want %q", a.PasswordHash, want)
+			}
+		})
+	}
+}

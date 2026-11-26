@@ -61,6 +61,18 @@ func NewAccount(email, username, passwordHash string) (Account, error) {
 	}, nil
 }
 
+// SetPasswordHash replaces the password with a new, already hashed one. The
+// forgot-password flow does not require it to differ from the old password:
+// the user does not know the old one, and telling them it matches would
+// reveal it.
+func (a *Account) SetPasswordHash(hash string) error {
+	if hash == "" {
+		return ErrInvalidPassword
+	}
+	a.PasswordHash = hash
+	return nil
+}
+
 // ParseEmail validates an email and returns it lowercased (emails are unique
 // case-insensitively).
 func ParseEmail(raw string) (string, error) {

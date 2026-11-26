@@ -54,7 +54,7 @@ Tài khoản đăng nhập: đăng ký, đăng nhập, token, mật khẩu, user
 
 **ACCOUNT-R3 – Giới hạn thử sai.** Đăng nhập sai tối đa 5 lần trong 15 phút cho mỗi identifier (tính chung cho 1 cặp email username). Nhập sai mật khẩu cũ khi đổi mật khẩu cùng giới hạn đó cho mỗi user. Vượt giới hạn thì bị chặn tới khi hết thời gian, không có mở khóa thủ công, và phản hồi cho biết còn bao lâu. Đăng nhập thành công không xóa bộ đếm; đặt lại mật khẩu thành công thì xóa bộ đếm đăng nhập của tài khoản. *(Chưa chốt: quy tắc này sẽ được thiết kế lại thành cơ chế giới hạn thử sai dùng chung; vấn đề đã biết ghi ở mục "Để sau" của CLAUDE.md.)*
 
-**ACCOUNT-R4 – Mật khẩu.** 6–64 ký tự, có ít nhất một chữ và một số. Đổi mật khẩu thì mật khẩu mới phải khác mật khẩu cũ.
+**ACCOUNT-R4 – Mật khẩu.** 6–64 ký tự, có ít nhất một chữ và một số. Đổi mật khẩu thì mật khẩu mới phải khác mật khẩu cũ. Đặt lại mật khẩu qua quên mật khẩu (xác thực bằng OTP) thì không áp dụng điều kiện này: người dùng không biết mật khẩu cũ, và báo trùng sẽ làm lộ nó.
 
 **ACCOUNT-R5 – Username.** Chỉ gồm `a-z`, `0-9`, `.`, `_`; dài 3–30; lưu chữ thường; không bắt đầu hoặc kết thúc bằng `.`; không có hai dấu `.` liền nhau; không chứa `@`; không thuộc danh sách tên dành riêng (`admin`, `moments`, `support`, `api`…). Đổi username giải phóng username cũ ngay; sau khi đổi, `account` yêu cầu `user` cập nhật bản sao username trong Profile. Hai bước này ràng buộc theo saga: bước sau thất bại thì bù trừ, đưa username ở cả hai module về như trước khi đổi. Username trùng thì báo cụ thể (username là thông tin công khai).
 

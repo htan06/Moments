@@ -37,6 +37,7 @@ type fakeAccounts struct {
 	byID      map[int64]domain.Account
 	createErr error
 	deleteErr error
+	updateErr error
 	nextID    int64
 }
 
@@ -68,6 +69,19 @@ func (f *fakeAccounts) Delete(_ context.Context, id int64) error {
 		return f.deleteErr
 	}
 	delete(f.byID, id)
+	return nil
+}
+
+func (f *fakeAccounts) UpdatePasswordHash(_ context.Context, id int64, hash string) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+	a, ok := f.byID[id]
+	if !ok {
+		return domain.ErrAccountNotFound
+	}
+	a.PasswordHash = hash
+	f.byID[id] = a
 	return nil
 }
 

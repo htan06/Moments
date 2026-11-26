@@ -20,7 +20,7 @@ type registerFixture struct {
 	tokens    *fakeTokens
 
 	start  *StartRegisterHandler
-	resend *ResendRegisterOTPHandler
+	resend *ResendOTPHandler
 	verify *VerifyRegisterHandler
 }
 
@@ -38,7 +38,7 @@ func newRegisterFixture(accounts ...domain.Account) *registerFixture {
 	f.start = NewStartRegisterHandler(f.accounts, f.sessions, f.passwords, f.profiles, f.sender, syncAsync, f.random,
 		domain.NewUsernameRules([]string{"admin"}), testPolicy, testLog)
 	f.start.now = now
-	f.resend = NewResendRegisterOTPHandler(f.sessions, f.sender, syncAsync, f.random, testPolicy, testLog)
+	f.resend = NewResendOTPHandler(domain.VerificationRegister, f.sessions, f.sender, syncAsync, f.random, testPolicy, testLog)
 	f.resend.now = now
 	f.verify = NewVerifyRegisterHandler(f.accounts, f.profiles, f.sessions, f.tokens, testPolicy)
 	f.verify.now = now
@@ -145,7 +145,7 @@ func TestResendRegisterOTP_TooSoon(t *testing.T) {
 	f.resend.now = func() time.Time { return testNow.Add(10 * time.Second) }
 
 	var tooSoon *domain.ResendTooSoonError
-	err := f.resend.Handle(context.Background(), ResendRegisterOTP{SessionID: id})
+	err := f.resend.Handle(context.Background(), ResendOTP{SessionID: id})
 	if !errors.As(err, &tooSoon) || tooSoon.RetryAfterSeconds != 50 {
 		t.Fatalf("err = %v, want ResendTooSoonError{50}", err)
 	}
@@ -160,7 +160,7 @@ func TestResendRegisterOTP_SendsNewOTP(t *testing.T) {
 	f.resend.now = func() time.Time { return testNow.Add(time.Minute) }
 	f.random.otp = "999999"
 
-	if err := f.resend.Handle(context.Background(), ResendRegisterOTP{SessionID: id}); err != nil {
+	if err := f.resend.Handle(context.Background(), ResendOTP{SessionID: id}); err != nil {
 		t.Fatal(err)
 	}
 	if got := f.sender.sent[len(f.sender.sent)-1].otp; got != "999999" {
@@ -178,7 +178,7 @@ func TestResendRegisterOTP_ExpiredSession(t *testing.T) {
 	f := newRegisterFixture()
 	id := f.startSession(t, "a@example.com")
 	f.resend.now = func() time.Time { return testNow.Add(11 * time.Minute) }
-	if err := f.resend.Handle(context.Background(), ResendRegisterOTP{SessionID: id}); !errors.Is(err, domain.ErrSessionNotFound) {
+	if err := f.resend.Handle(context.Background(), ResendOTP{SessionID: id}); !errors.Is(err, domain.ErrSessionNotFound) {
 		t.Fatalf("err = %v, want ErrSessionNotFound", err)
 	}
 }

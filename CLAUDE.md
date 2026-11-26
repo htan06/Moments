@@ -246,12 +246,18 @@ go test ./...
   - *Phụ thuộc hai chiều:* `account` gọi `user` (tạo Profile); sau này `user` sẽ cần hỏi `account` (tồn tại, `ACTIVE`). Không bị vòng import Go vì mỗi bên chỉ import package `module` của bên kia trong adapter, wiring ở `cmd/api`.
 - **Tài liệu API (OpenAPI 3.1) nằm cùng module**: `internal/<module>/adapter/httpapi/openapi.yaml`, chỉ chứa route của module đó; route hệ thống (`/healthz`) ở `cmd/api/openapi.yaml`. Sửa route, body hay mã lỗi thì sửa spec trong cùng thay đổi và chạy `npx @redocly/cli lint` trên file đó. Vì sao: spec nằm cạnh handler nên dễ giữ khớp với code.
   - **Tag chỉ dùng để gom nhóm chức năng đi chung** (ví dụ `register` cho các bước đăng ký); endpoint đứng riêng không gắn tag. Import vào Postman chọn "Folder organization: Tags" để collection phẳng: chỉ nhóm có tag mới thành thư mục, không lồng thư mục theo path (`auth › register › resend-otp`).
+- **Quên mật khẩu theo cùng mẫu với đăng ký** (ACCOUNT-R1, ACCOUNT-R2): `POST /auth/password/forgot {email}` luôn trả `sessionId` (email chưa đăng ký thì phiên dummy, không gửi mail); `POST /auth/password/forgot/resend-otp`; `POST /auth/password/reset {sessionId, otp, newPassword}` kiểm tra OTP ngay trong request đổi mật khẩu. Một `command.ResendOTPHandler` phục vụ cả hai luồng, mỗi luồng một instance theo `VerificationType`; phiên của luồng kia trả `SESSION_NOT_FOUND`.
+  - *Reset trả 204, không trả token* (dev chọn): client đăng nhập lại bằng mật khẩu mới. Token đã cấp vẫn sống tới khi hết hạn (ACCOUNT-R6).
+  - *Không bắt mật khẩu mới khác mật khẩu cũ* (dev chọn): quy tắc "khác mật khẩu cũ" của ACCOUNT-R4 chỉ cho đổi mật khẩu khi đã đăng nhập; người quên mật khẩu không biết mật khẩu cũ, báo trùng sẽ làm lộ nó.
+  - `newPassword` sai định dạng bị từ chối trước khi kiểm tra OTP nên không tốn lượt nhập OTP. Lỗi DB lúc lưu mật khẩu thì giữ phiên để thử lại với cùng OTP.
+  - *Chưa làm:* xóa bộ đếm đăng nhập sai khi reset thành công (ACCOUNT-R3), chờ thiết kế giới hạn thử sai chung (xem "Để sau").
 - **Session id OTP là UUID v4**, sinh bằng `github.com/google/uuid` (`uuid.NewRandom`, đọc từ `crypto/rand`) trong `command.CryptoRandom`. Dependency này dev đã đồng ý thêm.
 
 ## Để sau – không tự làm
 
 - File schema topology RabbitMQ / Kafka (dev làm).
 - Integration test và CI (dev làm khi đến bước CI).
+- **Xóa bộ đếm đăng nhập sai khi đặt lại mật khẩu thành công (ACCOUNT-R3)**: chưa làm, làm cùng thiết kế giới hạn thử sai bên dưới.
 - **Giới hạn số lần thử sai: vấn đề chưa giải quyết, dev sẽ thiết kế một cơ chế chung.** Nhiều nơi cần nó (đăng nhập, mật khẩu cũ khi đổi mật khẩu, OTP, gửi lại OTP…). Bản hiện tại (ACCOUNT-R3, xem "Đếm đăng nhập sai") giữ nguyên tới khi có thiết kế mới; không tự sửa hay mở rộng. Các vấn đề đã thấy, làm đầu vào cho thiết kế:
   - *Lộ email thuộc username nào:* vì email và username của một tài khoản dùng chung bộ đếm, kẻ xấu sai 5 lần với `alice@x.com` rồi thử `alice`: nhận 429 nghĩa là email đó là của `alice` (va chạm ACCOUNT-R3 với ACCOUNT-R1).
   - *Khóa tài khoản người khác:* ai biết username cũng chặn được chủ tài khoản 15 phút bằng 5 lần nhập sai, lặp lại mãi được (không có mở khóa thủ công).

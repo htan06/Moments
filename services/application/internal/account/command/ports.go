@@ -30,6 +30,18 @@ type AccountCreator interface {
 	Create(ctx context.Context, a domain.Account) (int64, error)
 }
 
+// AccountUpdater stores changes to an existing account. It returns
+// domain.ErrAccountNotFound when the account is gone.
+type AccountUpdater interface {
+	UpdatePasswordHash(ctx context.Context, id int64, hash string) error
+}
+
+// AccountReadUpdater loads and updates accounts (one store does both).
+type AccountReadUpdater interface {
+	AccountReader
+	AccountUpdater
+}
+
 // AccountDeleter removes an account; used to undo a registration whose
 // profile could not be created (ACCOUNT-R7).
 type AccountDeleter interface {

@@ -126,6 +126,26 @@ func (q *Queries) GetAccountByUsername(ctx context.Context, username string) (Ac
 	return i, err
 }
 
+const updatePasswordHash = `-- name: UpdatePasswordHash :execrows
+UPDATE account.accounts
+SET password_hash = $2, updated_at = now()
+WHERE id = $1
+`
+
+type UpdatePasswordHashParams struct {
+	ID           int64
+	PasswordHash string
+}
+
+// Reset password (forgot-password flow).
+func (q *Queries) UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updatePasswordHash, arg.ID, arg.PasswordHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const usernameExists = `-- name: UsernameExists :one
 SELECT EXISTS (SELECT 1 FROM account.accounts WHERE username = $1)
 `

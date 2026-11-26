@@ -73,6 +73,19 @@ func (r *Accounts) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
+// UpdatePasswordHash replaces the password hash of an account. It returns
+// domain.ErrAccountNotFound when the account is gone.
+func (r *Accounts) UpdatePasswordHash(ctx context.Context, id int64, hash string) error {
+	n, err := r.q.UpdatePasswordHash(ctx, sqlc.UpdatePasswordHashParams{ID: id, PasswordHash: hash})
+	if err != nil {
+		return fmt.Errorf("postgres: update password: %w", err)
+	}
+	if n == 0 {
+		return domain.ErrAccountNotFound
+	}
+	return nil
+}
+
 func (r *Accounts) ByID(ctx context.Context, id int64) (domain.Account, error) {
 	return toAccount(r.q.GetAccountByID(ctx, id))
 }

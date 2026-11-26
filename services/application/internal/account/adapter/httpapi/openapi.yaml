@@ -3,9 +3,10 @@ info:
   title: Moments – auth
   version: 0.1.0
   description: |
-    Đăng ký bằng Email OTP, đăng nhập, làm mới token (code ở module `account`).
-    Import vào Postman với "Folder organization: Tags": các bước đăng ký nằm
-    trong thư mục `register`, các request khác nằm ngay gốc collection.
+    Đăng ký bằng Email OTP, đăng nhập, làm mới token, quên mật khẩu (code ở
+    module `account`). Import vào Postman với "Folder organization: Tags": các
+    bước đăng ký nằm trong thư mục `register`, các bước quên mật khẩu trong
+    `forgot-password`, các request khác nằm ngay gốc collection.
 
     Mỗi module giữ spec riêng cạnh `adapter/httpapi`; route hệ thống
     (`/healthz`) ở `cmd/api/openapi.yaml`.
@@ -34,6 +35,16 @@ info:
 
     Phiên đăng ký sống 10 phút kể từ bước 2 (gửi lại OTP không gia hạn).
     Username không được giữ chỗ trong lúc chờ OTP.
+
+    **Luồng quên mật khẩu**
+    1. `POST /auth/password/forgot` gửi `email` → nhận `sessionId`; OTP được
+       gửi qua email nếu email đã đăng ký.
+    2. (Tùy chọn) `POST /auth/password/forgot/resend-otp`.
+    3. `POST /auth/password/reset` với OTP và mật khẩu mới → OTP đúng thì đổi
+       mật khẩu (204, không trả token; client đăng nhập lại bằng mật khẩu mới).
+
+    Phiên sống 10 phút, cùng quy tắc OTP với đăng ký (ACCOUNT-R2). Token đã
+    cấp trước đó vẫn hợp lệ tới khi hết hạn (ACCOUNT-R6).
 servers:
   - url: http://localhost:8080
     description: Local (địa chỉ thật theo biến `APPLICATION_ADDRESS`)
@@ -41,11 +52,14 @@ servers:
 security:
   - bearerAuth: []
 
-# Postman: import with "Folder organization: Tags" so only the register
-# endpoints get a folder; every other request stays at the collection root.
+# Postman: import with "Folder organization: Tags" so only the register and
+# forgot-password endpoints get a folder; every other request stays at the
+# collection root.
 tags:
   - name: register
     description: Các bước đăng ký bằng Email OTP.
+  - name: forgot-password
+    description: Các bước đặt lại mật khẩu bằng Email OTP.
 
 paths:
   /auth/username-availability:
@@ -232,6 +246,134 @@ paths:
         '500':
           $ref: '#/components/responses/Internal'
 
+  /auth/password/forgot:
+    post:
+      tags: [forgot-password]
+      operationId: forgotPassword
+      security: []
+      summary: Yêu cầu đặt lại mật khẩu, nhận OTP qua email
+      description: |
+        Tạo phiên quên mật khẩu và gửi OTP 6 chữ số tới email (bất đồng bộ,
+        request không chờ mail đi).
+
+        Email đúng định dạng luôn nhận `sessionId`, kể cả khi chưa được đăng ký:
+        khi đó phiên là "dummy", không có mail nào được gửi và mọi OTP nhập vào
+        đều bị coi là sai (ACCOUNT-R1).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                  description: Địa chỉ trần (không có tên hiển thị); không phân biệt hoa thường.
+                  example: alice@example.com
+      responses:
+        '200':
+          description: Đã tạo phiên.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: '`INVALID_REQUEST` hoặc `INVALID_EMAIL`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /auth/password/forgot/resend-otp:
+    post:
+      tags: [forgot-password]
+      operationId: resendForgotPasswordOtp
+      security: []
+      summary: Gửi lại OTP quên mật khẩu
+      description: |
+        Như `POST /auth/register/resend-otp`, cho phiên quên mật khẩu. Phiên
+        của luồng đăng ký trả `SESSION_NOT_FOUND`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionRequest'
+      responses:
+        '204':
+          description: Đã gửi lại OTP.
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '429':
+          description: '`OTP_RESEND_TOO_SOON` – chưa hết thời gian chờ.'
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetryAfterError'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /auth/password/reset:
+    post:
+      tags: [forgot-password]
+      operationId: resetPassword
+      security: []
+      summary: Xác thực OTP và đặt mật khẩu mới
+      description: |
+        OTP đúng → đổi mật khẩu và xóa phiên. Không trả token: client đăng nhập
+        lại bằng mật khẩu mới. Mật khẩu mới được phép trùng mật khẩu cũ (người
+        quên mật khẩu không biết mật khẩu cũ; báo trùng sẽ làm lộ nó).
+
+        `newPassword` sai định dạng bị từ chối trước khi kiểm tra OTP, nên
+        không tính là một lần nhập sai OTP.
+
+        OTP sai bị đếm; sai đủ 5 lần thì phiên bị xóa, phải yêu cầu lại từ đầu
+        (ACCOUNT-R2). Phiên dummy luôn trả `WRONG_OTP`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, otp, newPassword]
+              properties:
+                sessionId:
+                  type: string
+                  format: uuid
+                otp:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                  example: '123456'
+                newPassword:
+                  $ref: '#/components/schemas/Password'
+      responses:
+        '204':
+          description: Đã đổi mật khẩu.
+        '400':
+          description: |
+            - `INVALID_REQUEST`
+            - `INVALID_PASSWORD`: mật khẩu mới sai định dạng; không tính lần nhập OTP.
+            - `WRONG_OTP`: OTP sai, phiên vẫn còn.
+            - `TOO_MANY_OTP_ATTEMPTS`: sai đủ số lần, phiên đã bị xóa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
   /auth/login:
     post:
       operationId: login
@@ -407,7 +549,7 @@ components:
         sessionId:
           type: string
           format: uuid
-          description: UUID v4, dùng cho các bước tiếp theo của luồng đăng ký.
+          description: UUID v4, dùng cho các bước tiếp theo của luồng (đăng ký hoặc quên mật khẩu).
           example: 3f2b8c1e-6a4d-4f0b-9c2e-1d7a5b8e9f01
 
     Username:

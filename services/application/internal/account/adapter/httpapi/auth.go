@@ -12,13 +12,16 @@ import (
 	"github.com/htan06/Moments/application/internal/platform/token"
 )
 
-// Auth serves registration, login and token refresh. None of these routes
+// Auth serves registration, login, token refresh and forgotten passwords. None of these routes
 // require a token. Fields are set by the module wiring.
 type Auth struct {
 	UsernameAvailability *query.UsernameAvailabilityHandler
 	StartRegister        *command.StartRegisterHandler
-	ResendRegisterOTP    *command.ResendRegisterOTPHandler
+	ResendRegisterOTP    *command.ResendOTPHandler
 	VerifyRegister       *command.VerifyRegisterHandler
+	ForgotPassword       *command.ForgotPasswordHandler
+	ResendForgotOTP      *command.ResendOTPHandler
+	ResetPassword        *command.ResetPasswordHandler
 	Login                *command.LoginHandler
 	RefreshToken         *command.RefreshTokenHandler
 	Log                  *slog.Logger
@@ -30,6 +33,9 @@ func (a *Auth) Register(r gin.IRouter) {
 	g.POST("/register", a.startRegister)
 	g.POST("/register/resend-otp", a.resendRegisterOTP)
 	g.POST("/register/verify", a.verifyRegister)
+	g.POST("/password/forgot", a.forgotPassword)
+	g.POST("/password/forgot/resend-otp", a.resendForgotOTP)
+	g.POST("/password/reset", a.resetPassword)
 	g.POST("/login", a.login)
 	g.POST("/refresh", a.refresh)
 }
@@ -96,7 +102,11 @@ func (a *Auth) startRegister(c *gin.Context) {
 	c.JSON(http.StatusOK, sessionResponse{SessionID: id})
 }
 
-func (a *Auth) resendRegisterOTP(c *gin.Context) {
+func (a *Auth) resendRegisterOTP(c *gin.Context) { a.resendOTP(c, a.ResendRegisterOTP) }
+
+func (a *Auth) resendForgotOTP(c *gin.Context) { a.resendOTP(c, a.ResendForgotOTP) }
+
+func (a *Auth) resendOTP(c *gin.Context, h *command.ResendOTPHandler) {
 	var req struct {
 		SessionID string `json:"sessionId"`
 	}
@@ -104,7 +114,7 @@ func (a *Auth) resendRegisterOTP(c *gin.Context) {
 		badRequest(c)
 		return
 	}
-	if err := a.ResendRegisterOTP.Handle(c.Request.Context(), command.ResendRegisterOTP{SessionID: req.SessionID}); err != nil {
+	if err := h.Handle(c.Request.Context(), command.ResendOTP{SessionID: req.SessionID}); err != nil {
 		writeError(c, a.Log, err)
 		return
 	}
@@ -126,6 +136,44 @@ func (a *Auth) verifyRegister(c *gin.Context) {
 		return
 	}
 	writeTokens(c, http.StatusCreated, pair)
+}
+
+func (a *Auth) forgotPassword(c *gin.Context) {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if c.ShouldBindJSON(&req) != nil {
+		badRequest(c)
+		return
+	}
+	id, err := a.ForgotPassword.Handle(c.Request.Context(), command.ForgotPassword{Email: req.Email})
+	if err != nil {
+		writeError(c, a.Log, err)
+		return
+	}
+	c.JSON(http.StatusOK, sessionResponse{SessionID: id})
+}
+
+func (a *Auth) resetPassword(c *gin.Context) {
+	var req struct {
+		SessionID   string `json:"sessionId"`
+		OTP         string `json:"otp"`
+		NewPassword string `json:"newPassword"`
+	}
+	if c.ShouldBindJSON(&req) != nil || req.SessionID == "" {
+		badRequest(c)
+		return
+	}
+	err := a.ResetPassword.Handle(c.Request.Context(), command.ResetPassword{
+		SessionID:   req.SessionID,
+		OTP:         req.OTP,
+		NewPassword: req.NewPassword,
+	})
+	if err != nil {
+		writeError(c, a.Log, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func (a *Auth) login(c *gin.Context) {
