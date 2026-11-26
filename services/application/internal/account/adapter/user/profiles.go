@@ -10,8 +10,9 @@ import (
 	usermodule "github.com/htan06/Moments/application/internal/user/module"
 )
 
-// Profiles implements command.ProfileNameValidator and command.ProfileCreator
-// on top of the user module, translating its errors into account errors.
+// Profiles implements command.ProfileNameValidator, command.ProfileCreator and
+// command.ProfileUsernameUpdater on top of the user module, translating its
+// errors into account errors.
 type Profiles struct {
 	users *usermodule.Module
 }
@@ -27,6 +28,10 @@ func (p *Profiles) ValidateName(name string) (string, error) {
 
 func (p *Profiles) CreateProfile(ctx context.Context, userID int64, username, name string) error {
 	return translate(p.users.CreateProfile(ctx, userID, username, name))
+}
+
+func (p *Profiles) UpdateProfileUsername(ctx context.Context, userID int64, username string) error {
+	return translate(p.users.UpdateUsername(ctx, userID, username))
 }
 
 func translate(err error) error {

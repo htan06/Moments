@@ -33,3 +33,15 @@ SELECT EXISTS (SELECT 1 FROM account.accounts WHERE username = $1);
 UPDATE account.accounts
 SET password_hash = $2, updated_at = now()
 WHERE id = $1;
+
+-- name: UpdateUsername :execrows
+-- Runs inside the rename transaction; the profile copy is updated before commit.
+UPDATE account.accounts
+SET username = $2, updated_at = now()
+WHERE id = $1;
+
+-- name: GetAccountStatus :one
+-- Facade for other modules: exists / ACTIVE / username.
+SELECT username, status
+FROM account.accounts
+WHERE id = $1;

@@ -19,6 +19,10 @@ var (
 	// complete without revealing why (ACCOUNT-R1, ACCOUNT-R7: email raced in).
 	ErrRegistrationFailed = errors.New("account: registration failed")
 
+	// Change password (signed in, ACCOUNT-R4).
+	ErrWrongPassword = errors.New("account: wrong current password")
+	ErrSamePassword  = errors.New("account: new password equals current password")
+
 	// ErrInvalidCredentials covers unknown identifier and wrong password (ACCOUNT-R1).
 	ErrInvalidCredentials = errors.New("account: invalid credentials")
 

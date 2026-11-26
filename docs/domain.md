@@ -52,11 +52,11 @@ Tài khoản đăng nhập: đăng ký, đăng nhập, token, mật khẩu, user
 - Nhập sai OTP tối đa 5 lần mỗi phiên, vượt thì xóa phiên và bắt đầu lại.
 - Gửi email OTP là bất đồng bộ: hệ thống không chờ mail đi. Mail chưa gửi mà OTP đã hết hạn thì không gửi nữa. Gửi thất bại không làm đổi phản hồi (theo ACCOUNT-R1); người dùng dùng chức năng gửi lại.
 
-**ACCOUNT-R3 – Giới hạn thử sai.** Đăng nhập sai tối đa 5 lần trong 15 phút cho mỗi identifier (tính chung cho 1 cặp email username). Nhập sai mật khẩu cũ khi đổi mật khẩu cùng giới hạn đó cho mỗi user. Vượt giới hạn thì bị chặn tới khi hết thời gian, không có mở khóa thủ công, và phản hồi cho biết còn bao lâu. Đăng nhập thành công không xóa bộ đếm; đặt lại mật khẩu thành công thì xóa bộ đếm đăng nhập của tài khoản. *(Chưa chốt: quy tắc này sẽ được thiết kế lại thành cơ chế giới hạn thử sai dùng chung; vấn đề đã biết ghi ở mục "Để sau" của CLAUDE.md.)*
+**ACCOUNT-R3 – Giới hạn thử sai.** Đăng nhập sai tối đa 5 lần trong 15 phút cho mỗi identifier (tính chung cho 1 cặp email username). Nhập sai mật khẩu hiện tại khi đổi mật khẩu (đã đăng nhập) không bị giới hạn số lần. Vượt giới hạn thì bị chặn tới khi hết thời gian, không có mở khóa thủ công, và phản hồi cho biết còn bao lâu. Đăng nhập thành công không xóa bộ đếm; đặt lại mật khẩu thành công thì xóa bộ đếm đăng nhập của tài khoản. *(Chưa chốt: quy tắc này sẽ được thiết kế lại thành cơ chế giới hạn thử sai dùng chung; vấn đề đã biết ghi ở mục "Để sau" của CLAUDE.md.)*
 
 **ACCOUNT-R4 – Mật khẩu.** 6–64 ký tự, có ít nhất một chữ và một số. Đổi mật khẩu thì mật khẩu mới phải khác mật khẩu cũ. Đặt lại mật khẩu qua quên mật khẩu (xác thực bằng OTP) thì không áp dụng điều kiện này: người dùng không biết mật khẩu cũ, và báo trùng sẽ làm lộ nó.
 
-**ACCOUNT-R5 – Username.** Chỉ gồm `a-z`, `0-9`, `.`, `_`; dài 3–30; lưu chữ thường; không bắt đầu hoặc kết thúc bằng `.`; không có hai dấu `.` liền nhau; không chứa `@`; không thuộc danh sách tên dành riêng (`admin`, `moments`, `support`, `api`…). Đổi username giải phóng username cũ ngay; sau khi đổi, `account` yêu cầu `user` cập nhật bản sao username trong Profile. Hai bước này ràng buộc theo saga: bước sau thất bại thì bù trừ, đưa username ở cả hai module về như trước khi đổi. Username trùng thì báo cụ thể (username là thông tin công khai).
+**ACCOUNT-R5 – Username.** Chỉ gồm `a-z`, `0-9`, `.`, `_`; dài 3–30; lưu chữ thường; không bắt đầu hoặc kết thúc bằng `.`; không có hai dấu `.` liền nhau; không chứa `@`; không thuộc danh sách tên dành riêng (`admin`, `moments`, `support`, `api`…). Đổi username giải phóng username cũ ngay; sau khi đổi, `account` yêu cầu `user` cập nhật bản sao username trong Profile. Hai bước này đi cùng nhau: `account` đổi username trong một transaction chưa commit, gọi `user` cập nhật bản sao; `user` thành công thì commit, thất bại thì rollback, nên username ở cả hai module giữ như trước khi đổi. Đổi sang đúng username hiện tại thì không thay đổi gì. Username trùng thì báo cụ thể (username là thông tin công khai).
 
 **ACCOUNT-R6 – Phiên đăng nhập và token.**
 - Token truy cập và token làm mới chứa `userId`, `username`, `status`. Hệ thống chỉ dùng `userId` để định danh và phân quyền; `username` chỉ để hiển thị.
@@ -68,7 +68,7 @@ Tài khoản đăng nhập: đăng ký, đăng nhập, token, mật khẩu, user
 **ACCOUNT-R7 – Tạo tài khoản.** Mỗi Account có đúng một Profile (thuộc module `user`). Khi đăng ký, Account được tạo trước, ngay sau đó `account` yêu cầu `user` tạo Profile; yêu cầu này idempotent (gọi lại không tạo thêm). Tạo Profile thất bại thì xóa Account vừa tạo và giữ phiên, user thử lại với cùng OTP. Trùng email khi hoàn tất đăng ký (hai luồng đua nhau) thì báo lỗi chung và hủy phiên. Username không được giữ chỗ trong lúc chờ OTP; nếu bị người khác lấy trước khi hoàn tất thì báo username trùng và hủy phiên, user đăng ký lại.
 
 ## Việc `account` cung cấp cho module khác
-- **Thông tin tài khoản của một user:** có tồn tại không, có `ACTIVE` không, `username`.
+- **Thông tin tài khoản của một user** (`GetStatus`): có tồn tại không, có `ACTIVE` không, `username`.
 
 ---
 
@@ -80,7 +80,7 @@ Hồ sơ (Profile) và quan hệ follow / block giữa các user. Tài khoản �
 
 ### Profile
 - `userId`: = id của Account (module `account`); bất biến; mỗi Account đúng một Profile, do `account` yêu cầu tạo ngay sau Account (ACCOUNT-R7)
-- `username`: bản sao `username` của Account, duy nhất, để đọc profile không phải hỏi `account`; `account` là nguồn gốc, đổi username thì `account` yêu cầu `user` cập nhật bản sao theo saga (ACCOUNT-R5)
+- `username`: bản sao `username` của Account, duy nhất, để đọc profile không phải hỏi `account`; `account` là nguồn gốc, đổi username thì `account` yêu cầu `user` cập nhật bản sao (ACCOUNT-R5)
 - `name`: 1–50 ký tự sau khi trim; do user nhập khi đăng ký (bắt buộc)
 - `bio`: tối đa 150 ký tự; chuỗi rỗng thì lưu `null`
 - `avatar`: ảnh đại diện đã xử lý; `null` khi chưa có; luôn vuông 1:1
@@ -125,7 +125,7 @@ Hồ sơ (Profile) và quan hệ follow / block giữa các user. Tài khoản �
 
 ## Việc `user` cung cấp cho module khác
 - **Tạo Profile cho Account mới** (ACCOUNT-R7), kèm bản sao `username`: idempotent; kiểm tra tên profile hợp lệ trước khi tạo.
-- **Cập nhật bản sao `username`** khi `account` đổi username (chưa làm, cùng lúc với chức năng đổi username).
+- **Cập nhật bản sao `username`** khi `account` đổi username (ACCOUNT-R5); đặt lại đúng username đang có thì thành công, không đổi gì.
 - **Cập nhật `postCount`:** `content` yêu cầu tăng / giảm `postCount` của tác giả khi post của họ được publish hoặc bị xóa.
 - **Thông tin tóm tắt của một user:** có tồn tại không, có `ACTIVE` không, `username`, `name`, `avatarThumb`. `username` lấy từ bản sao trong Profile; tồn tại và `ACTIVE` do `user` hỏi lại `account` (chưa làm).
 - **Quan hệ giữa hai user:** người xem có follow đối tượng không; có Block giữa hai bên theo bất kỳ chiều nào không.

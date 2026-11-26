@@ -126,6 +126,25 @@ func (q *Queries) GetAccountByUsername(ctx context.Context, username string) (Ac
 	return i, err
 }
 
+const getAccountStatus = `-- name: GetAccountStatus :one
+SELECT username, status
+FROM account.accounts
+WHERE id = $1
+`
+
+type GetAccountStatusRow struct {
+	Username string
+	Status   string
+}
+
+// Facade for other modules: exists / ACTIVE / username.
+func (q *Queries) GetAccountStatus(ctx context.Context, id int64) (GetAccountStatusRow, error) {
+	row := q.db.QueryRow(ctx, getAccountStatus, id)
+	var i GetAccountStatusRow
+	err := row.Scan(&i.Username, &i.Status)
+	return i, err
+}
+
 const updatePasswordHash = `-- name: UpdatePasswordHash :execrows
 UPDATE account.accounts
 SET password_hash = $2, updated_at = now()
@@ -140,6 +159,26 @@ type UpdatePasswordHashParams struct {
 // Reset password (forgot-password flow).
 func (q *Queries) UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) (int64, error) {
 	result, err := q.db.Exec(ctx, updatePasswordHash, arg.ID, arg.PasswordHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateUsername = `-- name: UpdateUsername :execrows
+UPDATE account.accounts
+SET username = $2, updated_at = now()
+WHERE id = $1
+`
+
+type UpdateUsernameParams struct {
+	ID       int64
+	Username string
+}
+
+// Runs inside the rename transaction; the profile copy is updated before commit.
+func (q *Queries) UpdateUsername(ctx context.Context, arg UpdateUsernameParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateUsername, arg.ID, arg.Username)
 	if err != nil {
 		return 0, err
 	}

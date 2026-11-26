@@ -20,14 +20,24 @@ type Profile struct {
 // NewProfile builds the profile of a new account. username comes from the
 // account module, already validated and lowercased.
 func NewProfile(userID int64, username, name string) (Profile, error) {
-	if username == "" {
-		return Profile{}, ErrInvalidUsername
+	if err := ValidateUsernameCopy(username); err != nil {
+		return Profile{}, err
 	}
 	name, err := ParseName(name)
 	if err != nil {
 		return Profile{}, err
 	}
 	return Profile{UserID: userID, Username: username, Name: name}, nil
+}
+
+// ValidateUsernameCopy checks the username copy. Its format belongs to the
+// account module (ACCOUNT-R5), which sends it validated and lowercased; here it
+// only has to be non-empty.
+func ValidateUsernameCopy(username string) error {
+	if username == "" {
+		return ErrInvalidUsername
+	}
+	return nil
 }
 
 // ParseName validates a profile name: 1–50 characters after trimming.

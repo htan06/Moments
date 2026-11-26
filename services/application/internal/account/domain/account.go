@@ -73,6 +73,20 @@ func (a *Account) SetPasswordHash(hash string) error {
 	return nil
 }
 
+// Rename sets a new username, already parsed with UsernameRules. It reports
+// whether the username actually changed, so renaming to the current username
+// is a no-op.
+func (a *Account) Rename(username string) (changed bool, err error) {
+	if username == "" {
+		return false, ErrInvalidUsername
+	}
+	if username == a.Username {
+		return false, nil
+	}
+	a.Username = username
+	return true, nil
+}
+
 // ParseEmail validates an email and returns it lowercased (emails are unique
 // case-insensitively).
 func ParseEmail(raw string) (string, error) {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/htan06/Moments/application/internal/account/adapter/postgres/sqlc"
 	"github.com/htan06/Moments/application/internal/account/domain"
+	"github.com/htan06/Moments/application/internal/account/query"
 	"github.com/htan06/Moments/application/internal/platform/pg"
 )
 
@@ -21,11 +22,56 @@ const (
 )
 
 type Accounts struct {
-	q *sqlc.Queries
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
 func NewAccounts(db *pgxpool.Pool) *Accounts {
-	return &Accounts{q: sqlc.New(db)}
+	return &Accounts{db: db, q: sqlc.New(db)}
+}
+
+// ChangeUsername updates the username in a transaction, then runs sync (the
+// profile copy update in the user module) and commits only if sync succeeded
+// (ACCOUNT-R5). While sync runs, the row and the new username's unique index
+// entry are locked, so a concurrent rename to the same username waits for
+// this one.
+func (r *Accounts) ChangeUsername(ctx context.Context, id int64, username string,
+	sync func(ctx context.Context) error) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("postgres: change username: begin: %w", err)
+	}
+	// No-op after Commit; otherwise undoes the update.
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+
+	n, err := r.q.WithTx(tx).UpdateUsername(ctx, sqlc.UpdateUsernameParams{ID: id, Username: username})
+	switch {
+	case pg.IsUniqueViolation(err, usernameUniqueIndex):
+		return domain.ErrUsernameTaken
+	case err != nil:
+		return fmt.Errorf("postgres: change username: %w", err)
+	case n == 0:
+		return domain.ErrAccountNotFound
+	}
+	if err := sync(ctx); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("postgres: change username: commit: %w", err)
+	}
+	return nil
+}
+
+// Status reads what other modules need about an account (facade).
+func (r *Accounts) Status(ctx context.Context, id int64) (query.AccountStatusRow, error) {
+	row, err := r.q.GetAccountStatus(ctx, id)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return query.AccountStatusRow{}, domain.ErrAccountNotFound
+	case err != nil:
+		return query.AccountStatusRow{}, fmt.Errorf("postgres: account status: %w", err)
+	}
+	return query.AccountStatusRow{Username: row.Username, Status: row.Status}, nil
 }
 
 func (r *Accounts) EmailExists(ctx context.Context, email string) (bool, error) {

@@ -36,3 +36,19 @@ func (r *Profiles) Create(ctx context.Context, p domain.Profile) error {
 	}
 	return nil
 }
+
+// UpdateUsername replaces the username copy. It returns
+// domain.ErrProfileNotFound when the user has no profile and
+// domain.ErrUsernameTaken when another profile holds the username.
+func (r *Profiles) UpdateUsername(ctx context.Context, userID int64, username string) error {
+	n, err := r.q.UpdateProfileUsername(ctx, sqlc.UpdateProfileUsernameParams{UserID: userID, Username: username})
+	switch {
+	case pg.IsUniqueViolation(err, usernameUniqueIndex):
+		return domain.ErrUsernameTaken
+	case err != nil:
+		return fmt.Errorf("postgres: update profile username: %w", err)
+	case n == 0:
+		return domain.ErrProfileNotFound
+	}
+	return nil
+}

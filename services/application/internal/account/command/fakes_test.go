@@ -38,6 +38,7 @@ type fakeAccounts struct {
 	createErr error
 	deleteErr error
 	updateErr error
+	commitErr error // ChangeUsername: the transaction fails to commit after sync
 	nextID    int64
 }
 
@@ -85,12 +86,51 @@ func (f *fakeAccounts) UpdatePasswordHash(_ context.Context, id int64, hash stri
 	return nil
 }
 
+// ChangeUsername mimics the rename transaction: the change is applied only
+// when sync succeeds and the "commit" (commitErr) does not fail.
+func (f *fakeAccounts) ChangeUsername(ctx context.Context, id int64, username string, sync func(context.Context) error) error {
+	a, ok := f.byID[id]
+	if !ok {
+		return domain.ErrAccountNotFound
+	}
+	for oid, o := range f.byID {
+		if o.Username == username && oid != id {
+			return domain.ErrUsernameTaken
+		}
+	}
+	if err := sync(ctx); err != nil {
+		return err
+	}
+	if f.commitErr != nil {
+		return f.commitErr
+	}
+	a.Username = username
+	f.byID[id] = a
+	return nil
+}
+
 // fakeProfiles stands in for the user module: it trims names like the real
 // rule and records created profiles.
 type fakeProfiles struct {
 	names     map[int64]string
 	usernames map[int64]string
 	createErr error
+	// renameErrs is consumed one per UpdateProfileUsername call (nil = success).
+	renameErrs []error
+	renames    int
+}
+
+func (f *fakeProfiles) UpdateProfileUsername(_ context.Context, userID int64, username string) error {
+	f.renames++
+	if len(f.renameErrs) > 0 {
+		err := f.renameErrs[0]
+		f.renameErrs = f.renameErrs[1:]
+		if err != nil {
+			return err
+		}
+	}
+	f.usernames[userID] = username
+	return nil
 }
 
 func newFakeProfiles() *fakeProfiles {

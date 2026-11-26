@@ -30,6 +30,8 @@ const (
 	codeOTPResendTooSoon    = "OTP_RESEND_TOO_SOON"
 	codeTooManyAttempts     = "TOO_MANY_ATTEMPTS"
 	codeInvalidRefreshToken = "INVALID_REFRESH_TOKEN"
+	codeWrongPassword       = "WRONG_PASSWORD"
+	codeSamePassword        = "SAME_PASSWORD"
 )
 
 type errorMapping struct {
@@ -51,6 +53,10 @@ var mappings = []errorMapping{
 	{domain.ErrTooManyOTPAttempts, http.StatusBadRequest, codeTooManyOTPAttempts},
 	{domain.ErrInvalidToken, http.StatusUnauthorized, codeInvalidRefreshToken},
 	{domain.ErrAccountInactive, http.StatusForbidden, httpx.CodeForbidden},
+	{domain.ErrWrongPassword, http.StatusBadRequest, codeWrongPassword},
+	{domain.ErrSamePassword, http.StatusBadRequest, codeSamePassword},
+	// Only reached by signed-in routes: the token outlived its account.
+	{domain.ErrAccountNotFound, http.StatusUnauthorized, httpx.CodeUnauthorized},
 }
 
 // writeError maps a use-case error to a response. Unknown errors are logged

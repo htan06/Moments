@@ -26,3 +26,23 @@ func (q *Queries) CreateProfile(ctx context.Context, arg CreateProfileParams) er
 	_, err := q.db.Exec(ctx, createProfile, arg.UserID, arg.Username, arg.Name)
 	return err
 }
+
+const updateProfileUsername = `-- name: UpdateProfileUsername :execrows
+UPDATE users.profiles
+SET username = $2, updated_at = now()
+WHERE user_id = $1
+`
+
+type UpdateProfileUsernameParams struct {
+	UserID   int64
+	Username string
+}
+
+// Keeps the username copy in sync when the account module renames (ACCOUNT-R5).
+func (q *Queries) UpdateProfileUsername(ctx context.Context, arg UpdateProfileUsernameParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateProfileUsername, arg.UserID, arg.Username)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

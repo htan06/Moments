@@ -42,6 +42,22 @@ type AccountReadUpdater interface {
 	AccountUpdater
 }
 
+// UsernameChanger renames an account in a transaction that also runs sync,
+// which updates the username copy in the user module. The transaction is
+// committed only when sync succeeds; otherwise it is rolled back and sync's
+// error returned. It returns domain.ErrUsernameTaken when another account
+// holds the username (sync is not called) and domain.ErrAccountNotFound when
+// the account is gone.
+type UsernameChanger interface {
+	ChangeUsername(ctx context.Context, id int64, username string, sync func(ctx context.Context) error) error
+}
+
+// AccountReadUsernameChanger loads and renames accounts (one store does both).
+type AccountReadUsernameChanger interface {
+	AccountReader
+	UsernameChanger
+}
+
 // AccountDeleter removes an account; used to undo a registration whose
 // profile could not be created (ACCOUNT-R7).
 type AccountDeleter interface {
@@ -65,6 +81,13 @@ type ProfileNameValidator interface {
 // safe. It returns domain.ErrUsernameTaken when the copy clashes.
 type ProfileCreator interface {
 	CreateProfile(ctx context.Context, userID int64, username, name string) error
+}
+
+// ProfileUsernameUpdater asks the user module to update the username copy of
+// a profile (ACCOUNT-R5). Setting the same username again succeeds. It returns
+// domain.ErrUsernameTaken when another profile holds the username.
+type ProfileUsernameUpdater interface {
+	UpdateProfileUsername(ctx context.Context, userID int64, username string) error
 }
 
 // Change tells the verification store what to do after an update function.
@@ -115,6 +138,12 @@ type PasswordHasher interface {
 type PasswordVerifier interface {
 	Matches(hash, password string) bool
 	CompareDummy(password string)
+}
+
+// PasswordHashVerifier hashes and checks passwords (one hasher does both).
+type PasswordHashVerifier interface {
+	PasswordHasher
+	PasswordVerifier
 }
 
 // LoginSubject is what failed login attempts are counted against (ACCOUNT-R3):

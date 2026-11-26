@@ -3,8 +3,8 @@ info:
   title: Moments – auth
   version: 0.1.0
   description: |
-    Đăng ký bằng Email OTP, đăng nhập, làm mới token, quên mật khẩu (code ở
-    module `account`). Import vào Postman với "Folder organization: Tags": các
+    Đăng ký bằng Email OTP, đăng nhập, làm mới token, quên / đổi mật khẩu, đổi
+    username (code ở module `account`). Import vào Postman với "Folder organization: Tags": các
     bước đăng ký nằm trong thư mục `register`, các bước quên mật khẩu trong
     `forgot-password`, các request khác nằm ngay gốc collection.
 
@@ -20,7 +20,7 @@ info:
     - Lỗi không lường trước → 500 `INTERNAL_ERROR` (không kèm chi tiết).
     - API cần xác thực gửi `Authorization: Bearer <accessToken>`. Thiếu / sai
       token → 401 `UNAUTHORIZED`; user không `ACTIVE` → 403 `FORBIDDEN`.
-      (Chưa có endpoint nào cần xác thực.)
+      Các route `/account/*` cần xác thực.
     - Để không lộ tài khoản (ACCOUNT-R1): email đã / chưa đăng ký đều nhận
       cùng phản hồi; sai username hay sai mật khẩu đều trả `INVALID_CREDENTIALS`.
 
@@ -374,6 +374,95 @@ paths:
         '500':
           $ref: '#/components/responses/Internal'
 
+  /account/password:
+    put:
+      operationId: changePassword
+      summary: Đổi mật khẩu (đã đăng nhập)
+      description: |
+        Kiểm tra mật khẩu hiện tại, rồi so mật khẩu mới với hash đang lưu:
+        trùng thì báo `SAME_PASSWORD` (ACCOUNT-R4). Nhập sai mật khẩu hiện tại
+        không bị giới hạn số lần. Token đang dùng vẫn hợp lệ, không cấp token mới.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldPassword, newPassword]
+              properties:
+                oldPassword:
+                  type: string
+                  format: password
+                newPassword:
+                  $ref: '#/components/schemas/Password'
+      responses:
+        '204':
+          description: Đã đổi mật khẩu.
+        '400':
+          description: |
+            - `INVALID_REQUEST`
+            - `INVALID_PASSWORD`: mật khẩu mới sai định dạng.
+            - `WRONG_PASSWORD`: mật khẩu hiện tại sai.
+            - `SAME_PASSWORD`: mật khẩu mới trùng mật khẩu hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /account/username:
+    put:
+      operationId: changeUsername
+      summary: Đổi username (đã đăng nhập)
+      description: |
+        Đổi username của tài khoản và bản sao trong Profile cùng lúc
+        (ACCOUNT-R5): bản sao không cập nhật được thì tài khoản giữ username cũ.
+        Username cũ được giải phóng ngay. Trả cặp token mới mang username mới
+        (ACCOUNT-R6); token cũ vẫn hợp lệ tới khi hết hạn nhưng mang username cũ.
+
+        Đổi sang đúng username hiện tại (không phân biệt hoa thường) thì không
+        thay đổi gì, vẫn trả cặp token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username:
+                  $ref: '#/components/schemas/Username'
+      responses:
+        '200':
+          description: Đã đổi username.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          description: '`INVALID_REQUEST` hoặc `INVALID_USERNAME` (sai định dạng hoặc là tên dành riêng).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: '`USERNAME_TAKEN` – username đã có người dùng.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Internal'
+
   /auth/login:
     post:
       operationId: login
@@ -529,6 +618,8 @@ components:
         - OTP_RESEND_TOO_SOON
         - TOO_MANY_ATTEMPTS
         - INVALID_REFRESH_TOKEN
+        - WRONG_PASSWORD
+        - SAME_PASSWORD
         - UNAUTHORIZED
         - FORBIDDEN
         - NOT_FOUND
@@ -607,6 +698,12 @@ components:
               value: { code: INVALID_REQUEST }
     SessionNotFound:
       description: '`SESSION_NOT_FOUND` – phiên không tồn tại, đã hết hạn hoặc thuộc luồng khác.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: '`UNAUTHORIZED` – thiếu / sai access token, hoặc tài khoản không còn tồn tại.'
       content:
         application/json:
           schema:

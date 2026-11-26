@@ -12,4 +12,6 @@ var (
 	ErrInvalidUsername = errors.New("user: invalid username")
 	// ErrUsernameTaken: another profile already holds this username copy.
 	ErrUsernameTaken = errors.New("user: username taken")
+	// ErrProfileNotFound: no profile for the user.
+	ErrProfileNotFound = errors.New("user: profile not found")
 )

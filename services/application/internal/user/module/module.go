@@ -19,6 +19,8 @@ var (
 	ErrInvalidName = domain.ErrInvalidName
 	// ErrUsernameTaken: another profile already holds the username copy.
 	ErrUsernameTaken = domain.ErrUsernameTaken
+	// ErrProfileNotFound: the user has no profile.
+	ErrProfileNotFound = domain.ErrProfileNotFound
 )
 
 type Deps struct {
@@ -26,13 +28,26 @@ type Deps struct {
 }
 
 type Module struct {
-	createProfile *command.CreateProfileHandler
+	createProfile  *command.CreateProfileHandler
+	updateUsername *command.UpdateUsernameHandler
 }
 
 func New(d Deps) *Module {
+	profiles := postgres.NewProfiles(d.DB)
 	return &Module{
-		createProfile: command.NewCreateProfileHandler(postgres.NewProfiles(d.DB)),
+		createProfile:  command.NewCreateProfileHandler(profiles),
+		updateUsername: command.NewUpdateUsernameHandler(profiles),
 	}
+}
+
+// UpdateUsername replaces the username copy of a profile when the account
+// module renames the account (ACCOUNT-R5). The account module calls it inside
+// its own rename transaction and rolls that back when this fails. Setting the
+// username the profile already has succeeds. It returns ErrUsernameTaken when
+// another profile holds the username and ErrProfileNotFound when the user has
+// no profile.
+func (m *Module) UpdateUsername(ctx context.Context, userID int64, username string) error {
+	return m.updateUsername.Handle(ctx, command.UpdateUsername{UserID: userID, Username: username})
 }
 
 // ValidateProfileName checks a profile name without storing anything and

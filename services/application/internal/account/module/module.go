@@ -1,8 +1,10 @@
 // Package module is the account module's facade: it wires the module from shared
-// clients, registers its routes and (later) exposes methods to other modules.
+// clients, registers its routes and exposes methods to other modules. Inputs
+// and outputs are built-in types or types declared here, never domain entities.
 package module
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	"github.com/htan06/Moments/application/internal/account/command"
 	"github.com/htan06/Moments/application/internal/account/domain"
 	"github.com/htan06/Moments/application/internal/account/query"
+	"github.com/htan06/Moments/application/internal/platform/httpx"
 	platformmq "github.com/htan06/Moments/application/internal/platform/mq"
 	"github.com/htan06/Moments/application/internal/platform/token"
 )
@@ -44,17 +47,20 @@ type Deps struct {
 	Publisher *platformmq.Publisher
 	Tokens    *token.Manager
 	// Profiles is the user module as seen by this module; cmd/api passes
-	// adapter/user.Profiles (ACCOUNT-R7).
+	// adapter/user.Profiles (ACCOUNT-R5, ACCOUNT-R7).
 	Profiles interface {
 		command.ProfileNameValidator
 		command.ProfileCreator
+		command.ProfileUsernameUpdater
 	}
 	Log    *slog.Logger
 	Policy Policy
 }
 
 type Module struct {
-	auth *httpapi.Auth
+	auth    *httpapi.Auth
+	account *httpapi.Account
+	status  *query.AccountStatusHandler
 }
 
 func New(d Deps) (*Module, error) {
@@ -91,10 +97,37 @@ func New(d Deps) (*Module, error) {
 			RefreshToken:  command.NewRefreshTokenHandler(accounts, d.Tokens),
 			Log:           log,
 		},
+		account: &httpapi.Account{
+			ChangePassword: command.NewChangePasswordHandler(accounts, passwords),
+			ChangeUsername: command.NewChangeUsernameHandler(accounts, d.Profiles, d.Tokens, usernames),
+			RequireAuth:    httpx.Auth(d.Tokens),
+			Log:            log,
+		},
+		status: query.NewAccountStatusHandler(accounts),
 	}, nil
 }
 
 // RegisterRoutes mounts the module's HTTP routes.
 func (m *Module) RegisterRoutes(r gin.IRouter) {
 	m.auth.Register(r)
+	m.account.Register(r)
+}
+
+// Status is what other modules may know about an account.
+type Status struct {
+	// Exists is false when no account has the id; the other fields are then empty.
+	Exists bool
+	// Active: only ACTIVE accounts may use features that need sign-in (ACCOUNT-R6).
+	Active   bool
+	Username string
+}
+
+// GetStatus tells whether the account exists, whether it is ACTIVE, and its
+// username. A missing account is not an error: it returns Exists = false.
+func (m *Module) GetStatus(ctx context.Context, userID int64) (Status, error) {
+	r, err := m.status.Handle(ctx, query.AccountStatus{UserID: userID})
+	if err != nil {
+		return Status{}, err
+	}
+	return Status{Exists: r.Exists, Active: r.Active, Username: r.Username}, nil
 }

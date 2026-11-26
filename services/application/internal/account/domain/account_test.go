@@ -136,3 +136,26 @@ func TestSetPasswordHash(t *testing.T) {
 		})
 	}
 }
+
+func TestRename(t *testing.T) {
+	tests := []struct {
+		name        string
+		in          string
+		wantChanged bool
+		wantErr     error
+		wantName    string
+	}{
+		{"new username", "bob", true, nil, "bob"},
+		{"same username", "alice", false, nil, "alice"},
+		{"empty", "", false, ErrInvalidUsername, "alice"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := Account{Username: "alice"}
+			changed, err := a.Rename(tt.in)
+			if changed != tt.wantChanged || !errors.Is(err, tt.wantErr) || a.Username != tt.wantName {
+				t.Fatalf("Rename = %v, %v, username %q; want %v, %v, %q", changed, err, a.Username, tt.wantChanged, tt.wantErr, tt.wantName)
+			}
+		})
+	}
+}
