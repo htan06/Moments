@@ -2,7 +2,7 @@
 
 Moments là mạng xã hội chia sẻ hình ảnh, video. Repo này là backend, tổ chức theo **modular monolith**: một binary, nhiều module nghiệp vụ tách biệt.
 
-> **Đang chuyển đổi kiến trúc.** Repo trước đây là microservice (`auth`, `user`, `post`…, mỗi thư mục một Go module; nay gom trong `legacy/`, chỉ để tham khảo). Đang chuyển về modular monolith theo file này. **Code mới nằm trong `services/application/`** (Go module `github.com/htan06/Moments/application`, không dùng `go.work`); mọi đường dẫn trong mục "Cấu trúc dự án" tính từ `services/application/`. Code microservice cũ **không phải mẫu**; code mới theo cấu trúc và quy ước bên dưới. Chưa rõ phần nào của code cũ được giữ, xóa hay chuyển vào module nào thì hỏi dev.
+> Repo trước đây là microservice (`auth`, `user`, `post`…, mỗi thư mục một Go module); code đó đã bị xóa, chỉ còn trong lịch sử git. **Code nằm trong `services/application/`** (Go module `github.com/htan06/Moments/application`, không dùng `go.work`); mọi đường dẫn trong mục "Cấu trúc dự án" tính từ `services/application/`. Code mới theo cấu trúc và quy ước bên dưới, không theo code microservice cũ.
 
 ## Cách làm việc
 
@@ -207,7 +207,7 @@ go test ./...
     mail/            mail service (Go module), .env, .env.docker
     migrate/         lệnh migrate (Go module), .env, .env.docker (tài khoản migrator, tên role app)
     nginx/nginx.conf
-  docs/  legacy/     legacy: code microservice cũ, không phải mẫu
+  docs/              domain.md
   ```
   Vì sao: platform dựng một lần và có vòng đời riêng; services build lại thường xuyên. Mỗi thành phần giữ env / secret của chính nó, không có `.env` chung ở gốc repo.
 - **Docker compose tách hai project dùng chung network `moments-net`** (tên cố định, do platform tạo). Chạy từ gốc repo, platform trước: `docker compose -f platform/compose.yml up -d`, rồi `docker compose -f services/compose.yml up -d --build`. Platform đọc `platform/.env` (compose tự tìm `.env` cạnh file compose). Nginx chuyển `/api/v1/*` sang api, bỏ prefix (`/api/v1/auth/login` → `/auth/login`).
