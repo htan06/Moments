@@ -1,0 +1,722 @@
+openapi: 3.1.0
+info:
+  title: Moments – auth
+  version: 0.1.0
+  description: |
+    Đăng ký bằng Email OTP, đăng nhập, làm mới token, quên / đổi mật khẩu, đổi
+    username (code ở module `account`). Import vào Postman với "Folder organization: Tags": các
+    bước đăng ký nằm trong thư mục `register`, các bước quên mật khẩu trong
+    `forgot-password`, các request khác nằm ngay gốc collection.
+
+    Mỗi module giữ spec riêng cạnh `adapter/httpapi`; route hệ thống
+    (`/healthz`) ở `cmd/api/openapi.yaml`.
+
+    **Quy ước chung**
+    - Body request / response là JSON, tên trường dạng camelCase.
+    - Thời gian trả về theo RFC 3339, UTC.
+    - Lỗi luôn có dạng `{"code": "...", "message": "..."}`; `message` tùy chọn,
+      client chỉ nên dựa vào `code`.
+    - Body không đúng JSON, sai kiểu hoặc thiếu trường bắt buộc → 400 `INVALID_REQUEST`.
+    - Lỗi không lường trước → 500 `INTERNAL_ERROR` (không kèm chi tiết).
+    - API cần xác thực gửi `Authorization: Bearer <accessToken>`. Thiếu / sai
+      token → 401 `UNAUTHORIZED`; user không `ACTIVE` → 403 `FORBIDDEN`.
+      Các route `/account/*` cần xác thực.
+    - Để không lộ tài khoản (ACCOUNT-R1): email đã / chưa đăng ký đều nhận
+      cùng phản hồi; sai username hay sai mật khẩu đều trả `INVALID_CREDENTIALS`.
+
+    **Luồng đăng ký**
+    1. Khi user nhập username, client gọi `GET /auth/username-availability`
+       để báo sớm username đã có người dùng.
+    2. `POST /auth/register` gửi `username`, `name`, `email`, `password` →
+       nhận `sessionId`; OTP được gửi qua email.
+    3. (Tùy chọn) `POST /auth/register/resend-otp` nếu chưa nhận được mail.
+    4. `POST /auth/register/verify` với OTP → OTP đúng thì tạo tài khoản và
+       trả token (đăng nhập luôn).
+
+    Phiên đăng ký sống 10 phút kể từ bước 2 (gửi lại OTP không gia hạn).
+    Username không được giữ chỗ trong lúc chờ OTP.
+
+    **Luồng quên mật khẩu**
+    1. `POST /auth/password/forgot` gửi `email` → nhận `sessionId`; OTP được
+       gửi qua email nếu email đã đăng ký.
+    2. (Tùy chọn) `POST /auth/password/forgot/resend-otp`.
+    3. `POST /auth/password/reset` với OTP và mật khẩu mới → OTP đúng thì đổi
+       mật khẩu (204, không trả token; client đăng nhập lại bằng mật khẩu mới).
+
+    Phiên sống 10 phút, cùng quy tắc OTP với đăng ký (ACCOUNT-R2). Token đã
+    cấp trước đó vẫn hợp lệ tới khi hết hạn (ACCOUNT-R6).
+servers:
+  - url: http://localhost:8080
+    description: Local (địa chỉ thật theo biến `APPLICATION_ADDRESS`)
+
+security:
+  - bearerAuth: []
+
+# Postman: import with "Folder organization: Tags" so only the register and
+# forgot-password endpoints get a folder; every other request stays at the
+# collection root.
+tags:
+  - name: register
+    description: Các bước đăng ký bằng Email OTP.
+  - name: forgot-password
+    description: Các bước đặt lại mật khẩu bằng Email OTP.
+
+paths:
+  /auth/username-availability:
+    get:
+      operationId: usernameAvailability
+      security: []
+      summary: Kiểm tra username còn dùng được không
+      description: |
+        Chỉ đọc dữ liệu tài khoản đã tạo; username không được giữ chỗ, nên
+        `available: true` không đảm bảo còn trống lúc tạo tài khoản.
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Username'
+      responses:
+        '200':
+          description: Kết quả kiểm tra.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [available]
+                properties:
+                  available:
+                    type: boolean
+        '400':
+          description: '`INVALID_REQUEST` hoặc `INVALID_USERNAME` (sai định dạng hoặc là tên dành riêng).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /auth/register:
+    post:
+      tags: [register]
+      operationId: startRegister
+      security: []
+      summary: Gửi thông tin đăng ký, nhận OTP qua email
+      description: |
+        Kiểm tra định dạng mọi trường, hash mật khẩu, tạo phiên đăng ký giữ
+        `username`, `name`, hash mật khẩu, rồi gửi OTP 6 chữ số tới email
+        (bất đồng bộ, request không chờ mail đi). Chưa tạo tài khoản ở bước này.
+
+        Dữ liệu hợp lệ luôn nhận `sessionId`, kể cả khi email đã được đăng ký:
+        khi đó phiên là "dummy", không có mail nào được gửi và mọi OTP nhập vào
+        đều bị coi là sai (ACCOUNT-R1).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, name, email, password]
+              properties:
+                username:
+                  $ref: '#/components/schemas/Username'
+                name:
+                  $ref: '#/components/schemas/Name'
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                  description: Địa chỉ trần (không có tên hiển thị); được chuyển về chữ thường.
+                  example: alice@example.com
+                password:
+                  $ref: '#/components/schemas/Password'
+      responses:
+        '200':
+          description: Đã tạo phiên.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: '`INVALID_REQUEST`, `INVALID_USERNAME`, `INVALID_NAME`, `INVALID_EMAIL` hoặc `INVALID_PASSWORD`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidEmail:
+                  value: { code: INVALID_EMAIL }
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /auth/register/resend-otp:
+    post:
+      tags: [register]
+      operationId: resendRegisterOtp
+      security: []
+      summary: Gửi lại OTP
+      description: |
+        Sinh OTP mới (OTP cũ hết hiệu lực) và gửi lại. Hai lần gửi cách nhau
+        tối thiểu 60 giây (ACCOUNT-R2). Không gia hạn phiên.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionRequest'
+      responses:
+        '204':
+          description: Đã gửi lại OTP.
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '429':
+          description: '`OTP_RESEND_TOO_SOON` – chưa hết thời gian chờ.'
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetryAfterError'
+              examples:
+                tooSoon:
+                  value: { code: OTP_RESEND_TOO_SOON, retryAfterSeconds: 42 }
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /auth/register/verify:
+    post:
+      tags: [register]
+      operationId: verifyRegister
+      security: []
+      summary: Xác thực OTP và tạo tài khoản
+      description: |
+        OTP đúng → tạo Account + Profile từ dữ liệu đã gửi ở `POST /auth/register`,
+        xóa phiên và trả token (đăng nhập luôn).
+
+        OTP sai bị đếm; sai đủ 5 lần thì phiên bị xóa, phải đăng ký lại (ACCOUNT-R2).
+        Phiên dummy luôn trả `WRONG_OTP`.
+
+        Phiên bị hủy, user phải đăng ký lại, khi:
+        - username đã bị người khác lấy trong lúc chờ OTP (`USERNAME_TAKEN`);
+        - email vừa được một luồng đăng ký khác dùng (`REGISTRATION_FAILED`, ACCOUNT-R7).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, otp]
+              properties:
+                sessionId:
+                  type: string
+                  format: uuid
+                otp:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                  example: '123456'
+      responses:
+        '201':
+          description: Đã tạo tài khoản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          description: |
+            - `INVALID_REQUEST`
+            - `WRONG_OTP`: OTP sai, phiên vẫn còn.
+            - `TOO_MANY_OTP_ATTEMPTS`: sai đủ số lần, phiên đã bị xóa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '409':
+          description: |
+            - `USERNAME_TAKEN`: username đã bị người khác lấy; phiên đã bị hủy.
+            - `REGISTRATION_FAILED`: không thể hoàn tất; phiên đã bị hủy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /auth/password/forgot:
+    post:
+      tags: [forgot-password]
+      operationId: forgotPassword
+      security: []
+      summary: Yêu cầu đặt lại mật khẩu, nhận OTP qua email
+      description: |
+        Tạo phiên quên mật khẩu và gửi OTP 6 chữ số tới email (bất đồng bộ,
+        request không chờ mail đi).
+
+        Email đúng định dạng luôn nhận `sessionId`, kể cả khi chưa được đăng ký:
+        khi đó phiên là "dummy", không có mail nào được gửi và mọi OTP nhập vào
+        đều bị coi là sai (ACCOUNT-R1).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                  description: Địa chỉ trần (không có tên hiển thị); không phân biệt hoa thường.
+                  example: alice@example.com
+      responses:
+        '200':
+          description: Đã tạo phiên.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: '`INVALID_REQUEST` hoặc `INVALID_EMAIL`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /auth/password/forgot/resend-otp:
+    post:
+      tags: [forgot-password]
+      operationId: resendForgotPasswordOtp
+      security: []
+      summary: Gửi lại OTP quên mật khẩu
+      description: |
+        Như `POST /auth/register/resend-otp`, cho phiên quên mật khẩu. Phiên
+        của luồng đăng ký trả `SESSION_NOT_FOUND`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionRequest'
+      responses:
+        '204':
+          description: Đã gửi lại OTP.
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '429':
+          description: '`OTP_RESEND_TOO_SOON` – chưa hết thời gian chờ.'
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetryAfterError'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /auth/password/reset:
+    post:
+      tags: [forgot-password]
+      operationId: resetPassword
+      security: []
+      summary: Xác thực OTP và đặt mật khẩu mới
+      description: |
+        OTP đúng → đổi mật khẩu và xóa phiên. Không trả token: client đăng nhập
+        lại bằng mật khẩu mới. Mật khẩu mới được phép trùng mật khẩu cũ (người
+        quên mật khẩu không biết mật khẩu cũ; báo trùng sẽ làm lộ nó).
+
+        `newPassword` sai định dạng bị từ chối trước khi kiểm tra OTP, nên
+        không tính là một lần nhập sai OTP.
+
+        OTP sai bị đếm; sai đủ 5 lần thì phiên bị xóa, phải yêu cầu lại từ đầu
+        (ACCOUNT-R2). Phiên dummy luôn trả `WRONG_OTP`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, otp, newPassword]
+              properties:
+                sessionId:
+                  type: string
+                  format: uuid
+                otp:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                  example: '123456'
+                newPassword:
+                  $ref: '#/components/schemas/Password'
+      responses:
+        '204':
+          description: Đã đổi mật khẩu.
+        '400':
+          description: |
+            - `INVALID_REQUEST`
+            - `INVALID_PASSWORD`: mật khẩu mới sai định dạng; không tính lần nhập OTP.
+            - `WRONG_OTP`: OTP sai, phiên vẫn còn.
+            - `TOO_MANY_OTP_ATTEMPTS`: sai đủ số lần, phiên đã bị xóa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /account/password:
+    put:
+      operationId: changePassword
+      summary: Đổi mật khẩu (đã đăng nhập)
+      description: |
+        Kiểm tra mật khẩu hiện tại, rồi so mật khẩu mới với hash đang lưu:
+        trùng thì báo `SAME_PASSWORD` (ACCOUNT-R4). Nhập sai mật khẩu hiện tại
+        không bị giới hạn số lần. Token đang dùng vẫn hợp lệ, không cấp token mới.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldPassword, newPassword]
+              properties:
+                oldPassword:
+                  type: string
+                  format: password
+                newPassword:
+                  $ref: '#/components/schemas/Password'
+      responses:
+        '204':
+          description: Đã đổi mật khẩu.
+        '400':
+          description: |
+            - `INVALID_REQUEST`
+            - `INVALID_PASSWORD`: mật khẩu mới sai định dạng.
+            - `WRONG_PASSWORD`: mật khẩu hiện tại sai.
+            - `SAME_PASSWORD`: mật khẩu mới trùng mật khẩu hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /account/username:
+    put:
+      operationId: changeUsername
+      summary: Đổi username (đã đăng nhập)
+      description: |
+        Đổi username của tài khoản và bản sao trong Profile cùng lúc
+        (ACCOUNT-R5): bản sao không cập nhật được thì tài khoản giữ username cũ.
+        Username cũ được giải phóng ngay. Trả cặp token mới mang username mới
+        (ACCOUNT-R6); token cũ vẫn hợp lệ tới khi hết hạn nhưng mang username cũ.
+
+        Đổi sang đúng username hiện tại (không phân biệt hoa thường) thì không
+        thay đổi gì, vẫn trả cặp token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username:
+                  $ref: '#/components/schemas/Username'
+      responses:
+        '200':
+          description: Đã đổi username.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          description: '`INVALID_REQUEST` hoặc `INVALID_USERNAME` (sai định dạng hoặc là tên dành riêng).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: '`USERNAME_TAKEN` – username đã có người dùng.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /auth/login:
+    post:
+      operationId: login
+      security: []
+      summary: Đăng nhập bằng email hoặc username
+      description: |
+        `identifier` chứa `@` thì được hiểu là email, ngược lại là username
+        (không phân biệt hoa thường).
+
+        Sai tối đa 5 lần trong 15 phút (tính từ lần sai đầu) cho mỗi tài khoản;
+        email và username của cùng tài khoản dùng chung bộ đếm. Vượt ngưỡng thì
+        bị chặn tới hết cửa sổ, kể cả khi nhập đúng mật khẩu (ACCOUNT-R3).
+        Đăng nhập thành công không xóa bộ đếm.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier, password]
+              properties:
+                identifier:
+                  type: string
+                  description: Email hoặc username.
+                  example: alice
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Đăng nhập thành công.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          description: '`INVALID_CREDENTIALS` – sai identifier hoặc mật khẩu (không phân biệt hai trường hợp).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          description: '`TOO_MANY_ATTEMPTS` – đang bị chặn do sai quá nhiều lần.'
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetryAfterError'
+              examples:
+                blocked:
+                  value: { code: TOO_MANY_ATTEMPTS, retryAfterSeconds: 600 }
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /auth/refresh:
+    post:
+      operationId: refreshToken
+      security: []
+      summary: Đổi refresh token lấy cặp token mới
+      description: |
+        `username` và `status` trong token mới lấy từ dữ liệu hiện tại,
+        không sao chép từ token cũ (ACCOUNT-R6).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Cặp token mới.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          description: '`INVALID_REFRESH_TOKEN` – token sai, hết hạn, hoặc tài khoản không còn tồn tại.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT (RS256)
+      description: Access token. Claims chỉ gồm user id, username, status.
+
+  headers:
+    RetryAfter:
+      description: Số giây còn phải chờ (bằng `retryAfterSeconds`).
+      schema:
+        type: integer
+        minimum: 1
+
+  schemas:
+    Error:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: Mã lỗi, xem bảng trong `ErrorCode`.
+          allOf:
+            - $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: Mô tả thêm, tùy chọn; không dùng để rẽ nhánh logic.
+
+    RetryAfterError:
+      type: object
+      required: [code, retryAfterSeconds]
+      properties:
+        code:
+          type: string
+          enum: [OTP_RESEND_TOO_SOON, TOO_MANY_ATTEMPTS]
+        retryAfterSeconds:
+          type: integer
+          minimum: 1
+
+    ErrorCode:
+      type: string
+      enum:
+        - INVALID_REQUEST
+        - INVALID_EMAIL
+        - INVALID_USERNAME
+        - INVALID_PASSWORD
+        - INVALID_NAME
+        - USERNAME_TAKEN
+        - REGISTRATION_FAILED
+        - INVALID_CREDENTIALS
+        - SESSION_NOT_FOUND
+        - WRONG_OTP
+        - TOO_MANY_OTP_ATTEMPTS
+        - OTP_RESEND_TOO_SOON
+        - TOO_MANY_ATTEMPTS
+        - INVALID_REFRESH_TOKEN
+        - WRONG_PASSWORD
+        - SAME_PASSWORD
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - NOT_FOUND
+        - INTERNAL_ERROR
+
+    SessionRequest:
+      type: object
+      required: [sessionId]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+
+    SessionResponse:
+      type: object
+      required: [sessionId]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+          description: UUID v4, dùng cho các bước tiếp theo của luồng (đăng ký hoặc quên mật khẩu).
+          example: 3f2b8c1e-6a4d-4f0b-9c2e-1d7a5b8e9f01
+
+    Username:
+      type: string
+      minLength: 3
+      maxLength: 30
+      pattern: '^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$'
+      description: |
+        ACCOUNT-R5: chỉ gồm `a-z`, `0-9`, `.`, `_`; dài 3–30; lưu chữ thường
+        (chữ hoa được chuyển về chữ thường); không bắt đầu / kết thúc bằng `.`;
+        không có `..`; không thuộc danh sách tên dành riêng (`admin`, `moments`,
+        `support`, `api`…).
+      example: alice_01
+
+    Name:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: Tên hiển thị trên profile; 1–50 ký tự sau khi bỏ khoảng trắng hai đầu.
+      example: Alice Nguyễn
+
+    Password:
+      type: string
+      format: password
+      minLength: 6
+      maxLength: 64
+      description: 'ACCOUNT-R4: 6–64 ký tự (tính theo ký tự Unicode), có ít nhất một chữ cái và một chữ số.'
+
+    TokenPair:
+      type: object
+      required: [accessToken, accessExpiresAt, refreshToken, refreshExpiresAt]
+      properties:
+        accessToken:
+          type: string
+          description: 'JWT, gửi qua `Authorization: Bearer`. Sống 15 phút.'
+        accessExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+          description: JWT dùng cho `POST /auth/refresh`. Sống 30 ngày.
+        refreshExpiresAt:
+          type: string
+          format: date-time
+
+  responses:
+    InvalidRequest:
+      description: '`INVALID_REQUEST` – body sai định dạng hoặc thiếu trường bắt buộc.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalid:
+              value: { code: INVALID_REQUEST }
+    SessionNotFound:
+      description: '`SESSION_NOT_FOUND` – phiên không tồn tại, đã hết hạn hoặc thuộc luồng khác.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: '`UNAUTHORIZED` – thiếu / sai access token, hoặc tài khoản không còn tồn tại.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: '`FORBIDDEN` – tài khoản không ở trạng thái `ACTIVE`.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Internal:
+      description: '`INTERNAL_ERROR`.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

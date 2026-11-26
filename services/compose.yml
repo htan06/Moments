@@ -1,0 +1,75 @@
+# Services: migrate (chạy một lần), api, mail, nginx. Chạy từ gốc repo:
+#   docker compose -f services/compose.yml up -d --build
+# Cần platform chạy trước (platform/compose.yml), vì network moments-net do platform tạo.
+# IP tĩnh trong 172.18.0.0/16: .1 là gateway của Docker, platform dùng .2–.6, services dùng .7–.10.
+#
+# Mỗi service đọc env / secret của riêng nó, compose không ghi đè và không cần .env chung:
+#   migrate : migrate/.env.docker          (tài khoản migrator, tên role application)
+#   api     : application/.env.docker      (+ application/secrets/ mount vào /secrets)
+#   mail    : mail/.env.docker
+# File .env.docker dùng tên container (moments-postgres…); .env cạnh nó dùng localhost cho go run.
+# Đường dẫn tương đối tính từ thư mục services/.
+name: moments-services
+
+services:
+  # Lệnh Go chạy một lần bằng role migrator. Với mỗi -module tên=thư_mục, theo thứ tự:
+  # goose up thư mục đó, rồi grants.sql trong cùng thư mục cho role application.
+  # Module nào cần migrate thì thêm một dòng. Role do dev tạo bằng platform/postgres/init.sql.
+  # Migration và grants.sql mount từ application/internal, sửa không cần build lại image.
+  moments-migrate:
+    build: ./migrate
+    container_name: moments-migrate
+    env_file: ./migrate/.env.docker
+    volumes:
+      - ./application/internal:/migrations:ro
+    command:
+      - -module=account=/migrations/account/adapter/postgres/migrations
+      - -module=user=/migrations/user/adapter/postgres/migrations
+      - -module=content=/migrations/content/adapter/postgres/migrations
+      - -module=interaction=/migrations/interaction/adapter/postgres/migrations
+    restart: "no"
+    networks:
+      moments-net:
+        ipv4_address: 172.18.0.10
+
+  moments-api:
+    build: ./application
+    container_name: moments-api
+    env_file: ./application/.env.docker
+    volumes:
+      - ./application/secrets:/secrets:ro
+    depends_on:
+      moments-migrate:
+        condition: service_completed_successfully
+    # Platform ở project khác nên không depends_on được; chưa kết nối được thì thoát và khởi động lại.
+    restart: unless-stopped
+    networks:
+      moments-net:
+        ipv4_address: 172.18.0.8
+
+  moments-mail:
+    build: ./mail
+    container_name: moments-mail
+    env_file: ./mail/.env.docker
+    restart: unless-stopped
+    networks:
+      moments-net:
+        ipv4_address: 172.18.0.9
+
+  moments-nginx:
+    image: nginx:alpine
+    container_name: moments-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - moments-api
+    restart: unless-stopped
+    networks:
+      moments-net:
+        ipv4_address: 172.18.0.7
+
+networks:
+  moments-net:
+    external: true
