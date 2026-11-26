@@ -52,7 +52,7 @@ Tài khoản đăng nhập: đăng ký, đăng nhập, token, mật khẩu, user
 - Nhập sai OTP tối đa 5 lần mỗi phiên, vượt thì xóa phiên và bắt đầu lại.
 - Gửi email OTP là bất đồng bộ: hệ thống không chờ mail đi. Mail chưa gửi mà OTP đã hết hạn thì không gửi nữa. Gửi thất bại không làm đổi phản hồi (theo ACCOUNT-R1); người dùng dùng chức năng gửi lại.
 
-**ACCOUNT-R3 – Giới hạn thử sai.** Đăng nhập sai tối đa 5 lần trong 15 phút cho mỗi identifier (tính chung cho 1 cặp email username). Nhập sai mật khẩu cũ khi đổi mật khẩu cùng giới hạn đó cho mỗi user. Vượt giới hạn thì bị chặn tới khi hết thời gian, không có mở khóa thủ công, và phản hồi cho biết còn bao lâu. Đăng nhập thành công không xóa bộ đếm; đặt lại mật khẩu thành công thì xóa bộ đếm đăng nhập của tài khoản.
+**ACCOUNT-R3 – Giới hạn thử sai.** Đăng nhập sai tối đa 5 lần trong 15 phút cho mỗi identifier (tính chung cho 1 cặp email username). Nhập sai mật khẩu cũ khi đổi mật khẩu cùng giới hạn đó cho mỗi user. Vượt giới hạn thì bị chặn tới khi hết thời gian, không có mở khóa thủ công, và phản hồi cho biết còn bao lâu. Đăng nhập thành công không xóa bộ đếm; đặt lại mật khẩu thành công thì xóa bộ đếm đăng nhập của tài khoản. *(Chưa chốt: quy tắc này sẽ được thiết kế lại thành cơ chế giới hạn thử sai dùng chung; vấn đề đã biết ghi ở mục "Để sau" của CLAUDE.md.)*
 
 **ACCOUNT-R4 – Mật khẩu.** 6–64 ký tự, có ít nhất một chữ và một số. Đổi mật khẩu thì mật khẩu mới phải khác mật khẩu cũ.
 
